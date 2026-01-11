@@ -37,29 +37,21 @@ class AppointmentCreated extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $appointment = $this->appointment;
-        $patient = $appointment->patient;
-        $doctor = $appointment->doctor;
-        $clinic = $appointment->clinic;
-
         return (new MailMessage)
-            ->subject("Appointment Confirmed - {$appointment->appointment_number}")
-            ->greeting("Hello {$patient->user->name},")
-            ->line("Your appointment has been successfully scheduled.")
-            ->line("**Appointment Details:**")
-            ->line("**Appointment Number:** {$appointment->appointment_number}")
-            ->line("**Date:** {$appointment->appointment_date->format('l, F j, Y')}")
-            ->line("**Time:** {$appointment->start_time->format('g:i A')} - {$appointment->end_time->format('g:i A')}")
-            ->line("**Doctor:** Dr. {$doctor->user->name} ({$doctor->specialization})")
-            ->line("**Clinic:** {$clinic->name}")
-            ->line("**Type:** {$appointment->appointment_type}")
-            ->when($appointment->reason, function ($mail) use ($appointment) {
-                return $mail->line("**Reason:** {$appointment->reason}");
+            ->subject('Appointment Scheduled - ' . $this->appointment->clinic->name)
+            ->greeting('Hello ' . $notifiable->name . '!')
+            ->line('Your appointment has been successfully scheduled.')
+            ->line('**Appointment Details:**')
+            ->line('**Date & Time:** ' . $this->appointment->scheduled_at->format('F j, Y \a\t g:i A'))
+            ->line('**Doctor:** Dr. ' . $this->appointment->doctor->name)
+            ->line('**Clinic:** ' . $this->appointment->clinic->name)
+            ->line('**Type:** ' . $this->appointment->type)
+            ->when($this->appointment->notes, function ($mail) {
+                return $mail->line('**Notes:** ' . $this->appointment->notes);
             })
-            ->line("Please arrive 15 minutes before your scheduled time.")
-            ->line("If you need to reschedule or cancel, please contact us at least 24 hours in advance.")
-            ->action('View Appointment Details', url("/appointments/{$appointment->id}"))
-            ->salutation("Best regards, {$clinic->name} Team");
+            ->action('View Appointment', url('/appointments/' . $this->appointment->id))
+            ->line('If you need to reschedule or cancel, please contact us at least 24 hours in advance.')
+            ->salutation('Best regards, ' . $this->appointment->clinic->name . ' Team');
     }
 
     /**
@@ -71,12 +63,8 @@ class AppointmentCreated extends Notification implements ShouldQueue
     {
         return [
             'appointment_id' => $this->appointment->id,
-            'appointment_number' => $this->appointment->appointment_number,
-            'appointment_date' => $this->appointment->appointment_date,
-            'start_time' => $this->appointment->start_time,
-            'end_time' => $this->appointment->end_time,
-            'doctor_name' => $this->appointment->doctor->user->name,
-            'clinic_name' => $this->appointment->clinic->name,
+            'type' => 'appointment_created',
+            'message' => 'Your appointment has been scheduled for ' . $this->appointment->scheduled_at->format('F j, Y \a\t g:i A'),
         ];
     }
 }

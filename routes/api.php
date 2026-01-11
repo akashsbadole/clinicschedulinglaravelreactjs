@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\ComplianceController;
 use Illuminate\Support\Facades\Route;
 
 // Authentication routes
@@ -182,4 +183,13 @@ Route::middleware(['auth:sanctum', 'role:admin,staff'])->group(function () {
     Route::post('/notifications/send-appointment-reminders', [\App\Http\Controllers\NotificationController::class, 'sendAppointmentReminders']);
     Route::post('/notifications/send-payment-reminders', [\App\Http\Controllers\NotificationController::class, 'sendPaymentReminders']);
     Route::post('/notifications/send-overdue-notifications', [\App\Http\Controllers\NotificationController::class, 'sendOverdueNotifications']);
+});
+
+// Compliance and Security Routes
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    Route::get('/compliance/audit-trail', [ComplianceController::class, 'auditTrail']);
+    Route::get('/compliance/data-access', [ComplianceController::class, 'dataAccessReport']);
+    Route::get('/compliance/security-incidents', [ComplianceController::class, 'securityIncidents']);
+    Route::get('/compliance/summary', [ComplianceController::class, 'complianceSummary']);
+    Route::get('/compliance/export', [ComplianceController::class, 'exportReport']);
 });

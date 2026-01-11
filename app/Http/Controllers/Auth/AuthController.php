@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -31,6 +32,11 @@ class AuthController extends Controller
         }
 
         $token = $user->createToken($request->device_name)->plainTextToken;
+
+        ActivityLog::log('login', 'User logged in', [
+            'device_name' => $request->device_name,
+            'email' => $user->email,
+        ], $user->id);
 
         return response()->json([
             'token' => $token,
@@ -60,6 +66,11 @@ class AuthController extends Controller
 
         $token = $user->createToken($request->device_name)->plainTextToken;
 
+        ActivityLog::log('register', 'User registered', [
+            'device_name' => $request->device_name,
+            'role' => $user->role,
+        ], $user->id);
+
         return response()->json([
             'token' => $token,
             'user' => $user,
@@ -71,7 +82,14 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
+        $user = $request->user();
+        $tokenId = $request->user()->currentAccessToken()->id;
+
         $request->user()->currentAccessToken()->delete();
+
+        ActivityLog::log('logout', 'User logged out', [
+            'token_id' => $tokenId,
+        ], $user->id);
 
         return response()->json([
             'message' => 'Successfully logged out',

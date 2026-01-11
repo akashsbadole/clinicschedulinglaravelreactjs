@@ -528,7 +528,8 @@ class BillController extends Controller
                 'generated_by' => $user->name,
             ];
 
-            $pdf = Pdf::loadView('bills.invoice', $data);
+            $html = view()->file(app_path('Views/bills/invoice.blade.php'), $data)->render();
+            $pdf = Pdf::loadHtml($html);
 
             return $pdf->download('bill_' . $bill->bill_number . '.pdf');
 
