@@ -12,15 +12,69 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import {
+    BarChart3,
+    BookOpen,
+    Calendar,
+    FileText,
+    Folder,
+    LayoutGrid,
+    Receipt,
+    Settings,
+    Stethoscope,
+    Users,
+} from 'lucide-react';
 import AppLogo from './app-logo';
 
-const mainNavItems: NavItem[] = [
+const allNavItems: (NavItem & { roles: string[] })[] = [
     {
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+        roles: ['admin', 'doctor', 'staff', 'patient'],
+    },
+    {
+        title: 'Patients',
+        href: '/patients',
+        icon: Users,
+        roles: ['admin', 'doctor', 'staff'],
+    },
+    {
+        title: 'Doctors',
+        href: '/doctors',
+        icon: Stethoscope,
+        roles: ['admin', 'staff'],
+    },
+    {
+        title: 'Appointments',
+        href: '/appointments',
+        icon: Calendar,
+        roles: ['admin', 'doctor', 'staff', 'patient'],
+    },
+    {
+        title: 'Billing',
+        href: '/billing',
+        icon: Receipt,
+        roles: ['admin', 'doctor', 'staff'],
+    },
+    {
+        title: 'Medical Records',
+        href: '/medical-records',
+        icon: FileText,
+        roles: ['admin', 'doctor'],
+    },
+    {
+        title: 'Reports',
+        href: '/reports',
+        icon: BarChart3,
+        roles: ['admin', 'doctor', 'staff'],
+    },
+    {
+        title: 'Settings',
+        href: '/settings/profile',
+        icon: Settings,
+        roles: ['admin', 'doctor', 'staff', 'patient'],
     },
 ];
 
@@ -38,6 +92,14 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const { auth } = usePage().props as any;
+    const user = auth.user;
+    const userRole = user.role;
+
+    const mainNavItems = allNavItems.filter((item) =>
+        item.roles.includes(userRole),
+    );
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
