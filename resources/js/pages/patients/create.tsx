@@ -17,9 +17,11 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import apiService from '@/lib/api';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Save } from 'lucide-react';
+import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -34,22 +36,34 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function PatientsCreate() {
     const { data, setData, post, processing, errors } = useForm({
-        name: '',
+        first_name: '',
+        last_name: '',
         email: '',
         phone: '',
         date_of_birth: '',
         gender: '',
         address: '',
-        blood_group: '',
+        blood_type: '',
         allergies: '',
-        chronic_conditions: '',
+        medical_history: '',
         emergency_contact_name: '',
         emergency_contact_phone: '',
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [apiProcessing, setApiProcessing] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        post('/api/patients');
+        setApiProcessing(true);
+        try {
+            await apiService.post('/patients', data);
+            router.visit('/patients');
+        } catch (err: any) {
+            // Error handling is handled by apiService interceptors or locally
+            console.error('Registration failed:', err);
+        } finally {
+            setApiProcessing(false);
+        }
     };
 
     return (
@@ -83,19 +97,45 @@ export default function PatientsCreate() {
                             </CardHeader>
                             <CardContent className="grid gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="name">Full Name *</Label>
+                                    <Label htmlFor="first_name">
+                                        First Name *
+                                    </Label>
                                     <Input
-                                        id="name"
-                                        value={data.name}
-                                        onChange={(e) =>
-                                            setData('name', e.target.value)
+                                        id="first_name"
+                                        value={data.first_name}
+                                        onChange={(
+                                            e: React.ChangeEvent<HTMLInputElement>,
+                                        ) =>
+                                            setData('first_name', e.target.value)
                                         }
-                                        placeholder="Enter full name"
+                                        placeholder="Enter first name"
                                         required
                                     />
-                                    {errors.name && (
+                                    {errors.first_name && (
                                         <p className="text-sm text-red-600">
-                                            {errors.name}
+                                            {errors.first_name}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="last_name">
+                                        Last Name *
+                                    </Label>
+                                    <Input
+                                        id="last_name"
+                                        value={data.last_name}
+                                        onChange={(
+                                            e: React.ChangeEvent<HTMLInputElement>,
+                                        ) =>
+                                            setData('last_name', e.target.value)
+                                        }
+                                        placeholder="Enter last name"
+                                        required
+                                    />
+                                    {errors.last_name && (
+                                        <p className="text-sm text-red-600">
+                                            {errors.last_name}
                                         </p>
                                     )}
                                 </div>
@@ -106,9 +146,9 @@ export default function PatientsCreate() {
                                         id="email"
                                         type="email"
                                         value={data.email}
-                                        onChange={(e) =>
-                                            setData('email', e.target.value)
-                                        }
+                                        onChange={(
+                                            e: React.ChangeEvent<HTMLInputElement>,
+                                        ) => setData('email', e.target.value)}
                                         placeholder="Enter email address"
                                     />
                                     {errors.email && (
@@ -123,9 +163,9 @@ export default function PatientsCreate() {
                                     <Input
                                         id="phone"
                                         value={data.phone}
-                                        onChange={(e) =>
-                                            setData('phone', e.target.value)
-                                        }
+                                        onChange={(
+                                            e: React.ChangeEvent<HTMLInputElement>,
+                                        ) => setData('phone', e.target.value)}
                                         placeholder="Enter phone number"
                                         required
                                     />
@@ -144,7 +184,9 @@ export default function PatientsCreate() {
                                         id="date_of_birth"
                                         type="date"
                                         value={data.date_of_birth}
-                                        onChange={(e) =>
+                                        onChange={(
+                                            e: React.ChangeEvent<HTMLInputElement>,
+                                        ) =>
                                             setData(
                                                 'date_of_birth',
                                                 e.target.value,
@@ -189,13 +231,13 @@ export default function PatientsCreate() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="blood_group">
+                                    <Label htmlFor="blood_type">
                                         Blood Group
                                     </Label>
                                     <Select
-                                        value={data.blood_group}
+                                        value={data.blood_type}
                                         onValueChange={(value) =>
-                                            setData('blood_group', value)
+                                            setData('blood_type', value)
                                         }
                                     >
                                         <SelectTrigger>
@@ -228,9 +270,9 @@ export default function PatientsCreate() {
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    {errors.blood_group && (
+                                    {errors.blood_type && (
                                         <p className="text-sm text-red-600">
-                                            {errors.blood_group}
+                                            {errors.blood_type}
                                         </p>
                                     )}
                                 </div>
@@ -250,7 +292,9 @@ export default function PatientsCreate() {
                                     <Textarea
                                         id="allergies"
                                         value={data.allergies}
-                                        onChange={(e) =>
+                                        onChange={(
+                                            e: React.ChangeEvent<HTMLTextAreaElement>,
+                                        ) =>
                                             setData('allergies', e.target.value)
                                         }
                                         placeholder="List any known allergies"
@@ -264,24 +308,26 @@ export default function PatientsCreate() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="chronic_conditions">
-                                        Chronic Conditions
+                                    <Label htmlFor="medical_history">
+                                        Medical History
                                     </Label>
                                     <Textarea
-                                        id="chronic_conditions"
-                                        value={data.chronic_conditions}
-                                        onChange={(e) =>
+                                        id="medical_history"
+                                        value={data.medical_history}
+                                        onChange={(
+                                            e: React.ChangeEvent<HTMLTextAreaElement>,
+                                        ) =>
                                             setData(
-                                                'chronic_conditions',
+                                                'medical_history',
                                                 e.target.value,
                                             )
                                         }
-                                        placeholder="List any chronic conditions"
+                                        placeholder="List any chronic conditions or medical history"
                                         rows={3}
                                     />
-                                    {errors.chronic_conditions && (
+                                    {errors.medical_history && (
                                         <p className="text-sm text-red-600">
-                                            {errors.chronic_conditions}
+                                            {errors.medical_history}
                                         </p>
                                     )}
                                 </div>
@@ -301,9 +347,9 @@ export default function PatientsCreate() {
                                     <Textarea
                                         id="address"
                                         value={data.address}
-                                        onChange={(e) =>
-                                            setData('address', e.target.value)
-                                        }
+                                        onChange={(
+                                            e: React.ChangeEvent<HTMLTextAreaElement>,
+                                        ) => setData('address', e.target.value)}
                                         placeholder="Enter full address"
                                         rows={3}
                                     />
@@ -322,7 +368,9 @@ export default function PatientsCreate() {
                                         <Input
                                             id="emergency_contact_name"
                                             value={data.emergency_contact_name}
-                                            onChange={(e) =>
+                                            onChange={(
+                                                e: React.ChangeEvent<HTMLInputElement>,
+                                            ) =>
                                                 setData(
                                                     'emergency_contact_name',
                                                     e.target.value,
@@ -344,7 +392,9 @@ export default function PatientsCreate() {
                                         <Input
                                             id="emergency_contact_phone"
                                             value={data.emergency_contact_phone}
-                                            onChange={(e) =>
+                                            onChange={(
+                                                e: React.ChangeEvent<HTMLInputElement>,
+                                            ) =>
                                                 setData(
                                                     'emergency_contact_phone',
                                                     e.target.value,
@@ -366,9 +416,14 @@ export default function PatientsCreate() {
                             <Button variant="outline" asChild>
                                 <Link href="/patients">Cancel</Link>
                             </Button>
-                            <Button type="submit" disabled={processing}>
+                            <Button
+                                type="submit"
+                                disabled={processing || apiProcessing}
+                            >
                                 <Save className="mr-2 h-4 w-4" />
-                                {processing ? 'Creating...' : 'Create Patient'}
+                                {processing || apiProcessing
+                                    ? 'Creating...'
+                                    : 'Create Patient'}
                             </Button>
                         </div>
                     </div>

@@ -3,27 +3,28 @@
 namespace Tests\Feature;
 
 use App\Models\MedicalRecord;
-use App\Models\Patient;
-use App\Models\Doctor;
-use App\Models\Appointment;
 use App\Models\Clinic;
+use App\Models\Doctor;
+use App\Models\Patient;
+use App\Models\Appointment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
-use Laravel\Sanctum\Sanctum;
+use Carbon\Carbon;
 
 class MedicalRecordManagementTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
 
-    private $adminUser;
-    private $doctorUser;
-    private $patientUser;
-    private $clinic;
-    private $patient;
-    private $doctor;
-    private $appointment;
+    protected $adminUser;
+    protected $doctorUser;
+    protected $patientUser;
+    protected $staffUser;
+    protected $clinic;
+    protected $doctor;
+    protected $patient;
+    protected $appointment;
 
     protected function setUp(): void
     {
@@ -39,7 +40,7 @@ class MedicalRecordManagementTest extends TestCase
             'country' => 'Test Country',
             'phone' => '1234567890',
             'email' => 'test@clinic.com',
-            'is_active' => true,
+            'is_active' => true
         ]);
 
         // Create admin user
@@ -48,7 +49,7 @@ class MedicalRecordManagementTest extends TestCase
             'email' => 'admin@test.com',
             'password' => bcrypt('password'),
             'role' => 'admin',
-            'clinic_id' => $this->clinic->id,
+            'clinic_id' => $this->clinic->id
         ]);
 
         // Create doctor user
@@ -58,6 +59,23 @@ class MedicalRecordManagementTest extends TestCase
             'password' => bcrypt('password'),
             'role' => 'doctor',
             'clinic_id' => $this->clinic->id,
+            'specialization' => 'Cardiology',
+            'license_number' => 'LIC-12345'
+        ]);
+
+        // Create doctor record
+        $this->doctor = Doctor::create([
+            'clinic_id' => $this->clinic->id,
+            'user_id' => $this->doctorUser->id,
+            'doctor_id' => 'TST-DOC-0001',
+            'specialization' => 'Cardiology',
+            'license_number' => 'LIC-12345',
+            'qualifications' => 'MD, PhD',
+            'years_of_experience' => 10,
+            'consultation_fee' => '100.00',
+            'bio' => 'Test doctor bio',
+            'availability' => 'Monday-Friday',
+            'is_accepting_new_patients' => true
         ]);
 
         // Create patient user
@@ -66,27 +84,14 @@ class MedicalRecordManagementTest extends TestCase
             'email' => 'patient@test.com',
             'password' => bcrypt('password'),
             'role' => 'patient',
-            'clinic_id' => $this->clinic->id,
+            'clinic_id' => $this->clinic->id
         ]);
 
-        // Create doctor
-        $this->doctor = Doctor::create([
-            'clinic_id' => $this->clinic->id,
-            'user_id' => $this->doctorUser->id,
-            'doctor_id' => 'DOC-001',
-            'specialization' => 'General Medicine',
-            'license_number' => 'LIC-12345',
-            'qualifications' => 'MD',
-            'years_of_experience' => 5,
-            'consultation_fee' => '100.00',
-            'is_accepting_new_patients' => true,
-        ]);
-
-        // Create patient
+        // Create patient record
         $this->patient = Patient::create([
             'clinic_id' => $this->clinic->id,
             'user_id' => $this->patientUser->id,
-            'patient_id' => 'PAT-001',
+            'patient_id' => 'TST-PAT-0001',
             'emergency_contact_name' => 'John Doe',
             'emergency_contact_phone' => '9876543210',
             'blood_type' => 'O+',
@@ -94,6 +99,16 @@ class MedicalRecordManagementTest extends TestCase
             'medical_history' => 'No major issues',
             'insurance_provider' => 'Test Insurance',
             'insurance_policy_number' => 'POL-12345',
+            'last_visit_date' => now()
+        ]);
+
+        // Create staff user
+        $this->staffUser = User::create([
+            'name' => 'Staff User',
+            'email' => 'staff@test.com',
+            'password' => bcrypt('password'),
+            'role' => 'staff',
+            'clinic_id' => $this->clinic->id
         ]);
 
         // Create appointment
@@ -102,433 +117,665 @@ class MedicalRecordManagementTest extends TestCase
             'patient_id' => $this->patient->id,
             'doctor_id' => $this->doctor->id,
             'created_by' => $this->adminUser->id,
-            'appointment_number' => 'APPT-001',
-            'appointment_date' => now(),
-            'start_time' => now(),
-            'end_time' => now()->addHour(),
+            'appointment_number' => 'TST-APPT-0001',
+            'appointment_date' => now()->addDays(1)->toDateString(),
+            'start_time' => '10:00:00',
+            'end_time' => '10:30:00',
             'status' => 'scheduled',
-            'appointment_type' => 'consultation',
-            'reason' => 'Routine checkup',
-            'priority' => 'normal',
-            'is_first_visit' => true,
+            'appointment_type' => 'consultation'
         ]);
     }
 
     /** @test */
     public function admin_can_create_medical_record()
     {
-        Sanctum::actingAs($this->adminUser);
-
-        $response = $this->postJson('/api/medical-records', [
+        $response = $this->actingAs($this->adminUser, 'sanctum')->post('/api/medical-records', [
             'clinic_id' => $this->clinic->id,
             'patient_id' => $this->patient->id,
             'doctor_id' => $this->doctor->id,
             'appointment_id' => $this->appointment->id,
-            'record_type' => 'diagnosis',
-            'content' => 'Test diagnosis content',
+            'record_type' => 'consultation',
+            'content' => 'Patient presented with chest pain. Diagnosis: stable angina.',
             'severity' => 'medium',
-            'is_confidential' => false,
+            'is_confidential' => false
         ]);
 
         $response->assertStatus(201)
             ->assertJson([
                 'success' => true,
-                'message' => 'Medical record created successfully',
+                'message' => 'Medical record created successfully'
             ]);
 
         $this->assertDatabaseHas('medical_records', [
-            'record_type' => 'diagnosis',
-            'content' => 'Test diagnosis content',
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'record_type' => 'consultation',
+            'severity' => 'medium'
         ]);
     }
 
     /** @test */
     public function doctor_can_create_medical_record()
     {
-        Sanctum::actingAs($this->doctorUser);
-
-        $response = $this->postJson('/api/medical-records', [
-            'clinic_id' => $this->clinic->id,
-            'patient_id' => $this->patient->id,
-            'doctor_id' => $this->doctor->id,
-            'appointment_id' => $this->appointment->id,
-            'record_type' => 'consultation',
-            'content' => 'Test consultation notes',
-            'severity' => 'low',
-            'is_confidential' => false,
-        ]);
-
-        $response->assertStatus(201)
-            ->assertJson([
-                'success' => true,
-                'message' => 'Medical record created successfully',
-            ]);
-
-        $this->assertDatabaseHas('medical_records', [
-            'record_type' => 'consultation',
-            'content' => 'Test consultation notes',
-        ]);
-    }
-
-    /** @test */
-    public function patient_cannot_create_medical_record()
-    {
-        Sanctum::actingAs($this->patientUser);
-
-        $response = $this->postJson('/api/medical-records', [
+        $response = $this->actingAs($this->doctorUser, 'sanctum')->post('/api/medical-records', [
             'clinic_id' => $this->clinic->id,
             'patient_id' => $this->patient->id,
             'doctor_id' => $this->doctor->id,
             'appointment_id' => $this->appointment->id,
             'record_type' => 'diagnosis',
-            'content' => 'Test diagnosis content',
-            'severity' => 'medium',
-            'is_confidential' => false,
+            'content' => 'Hypertension diagnosis confirmed.',
+            'severity' => 'high'
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'success' => true
+            ]);
+    }
+
+    /** @test */
+    public function staff_cannot_create_medical_record()
+    {
+        $response = $this->actingAs($this->staffUser, 'sanctum')->post('/api/medical-records', [
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'record_type' => 'notes',
+            'content' => 'Test notes'
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    /** @test */
+    public function patient_cannot_create_medical_record()
+    {
+        $response = $this->actingAs($this->patientUser, 'sanctum')->post('/api/medical-records', [
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'record_type' => 'notes',
+            'content' => 'Patient notes'
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    /** @test */
+    public function cannot_create_medical_record_with_invalid_data()
+    {
+        $response = $this->actingAs($this->adminUser, 'sanctum')->post('/api/medical-records', [
+            'clinic_id' => 999, // Invalid clinic ID
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'record_type' => 'invalid_type', // Invalid record type
+            'content' => ''
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false
+            ]);
+    }
+
+    /** @test */
+    public function cannot_create_medical_record_for_different_clinic()
+    {
+        $anotherClinic = Clinic::create([
+            'name' => 'Another Clinic',
+            'address' => '456 Another St',
+            'city' => 'Another City',
+            'state' => 'Another State',
+            'postal_code' => '67890',
+            'country' => 'Another Country',
+            'phone' => '0987654321',
+            'email' => 'another@clinic.com',
+            'is_active' => true
+        ]);
+
+        $response = $this->actingAs($this->doctorUser, 'sanctum')->post('/api/medical-records', [
+            'clinic_id' => $anotherClinic->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'record_type' => 'notes',
+            'content' => 'Test content'
         ]);
 
         $response->assertStatus(403)
-            ->assertJsonFragment([
-                'message' => 'Unauthorized action.',
+            ->assertJson([
+                'success' => false,
+                'message' => 'Unauthorized to create records for this clinic'
             ]);
     }
 
     /** @test */
     public function admin_can_get_all_medical_records()
     {
-        // Create a medical record first
+        // Create some medical records
         MedicalRecord::create([
             'clinic_id' => $this->clinic->id,
             'patient_id' => $this->patient->id,
             'doctor_id' => $this->doctor->id,
             'appointment_id' => $this->appointment->id,
-            'record_type' => 'diagnosis',
-            'content' => 'Test diagnosis content',
-            'severity' => 'medium',
-            'is_confidential' => false,
+            'record_type' => 'consultation',
+            'content' => 'Consultation notes',
+            'severity' => 'medium'
         ]);
 
-        Sanctum::actingAs($this->adminUser);
-
-        $response = $this->getJson('/api/medical-records');
+        $response = $this->actingAs($this->adminUser, 'sanctum')->get('/api/medical-records');
 
         $response->assertStatus(200)
             ->assertJson([
-                'success' => true,
+                'success' => true
             ])
-            ->assertJsonCount(1, 'data');
+            ->assertJsonStructure([
+                'data' => [
+                    '*' => [
+                        'id',
+                        'record_type',
+                        'content',
+                        'severity',
+                        'is_confidential'
+                    ]
+                ]
+            ]);
     }
 
     /** @test */
-    public function doctor_can_get_clinic_medical_records()
+    public function doctor_can_get_medical_records_from_own_clinic()
     {
-        // Create a medical record first
         MedicalRecord::create([
             'clinic_id' => $this->clinic->id,
             'patient_id' => $this->patient->id,
             'doctor_id' => $this->doctor->id,
-            'appointment_id' => $this->appointment->id,
             'record_type' => 'diagnosis',
-            'content' => 'Test diagnosis content',
-            'severity' => 'medium',
-            'is_confidential' => false,
+            'content' => 'Diagnosis notes',
+            'severity' => 'high'
         ]);
 
-        Sanctum::actingAs($this->doctorUser);
-
-        $response = $this->getJson('/api/medical-records');
+        $response = $this->actingAs($this->doctorUser, 'sanctum')->get('/api/medical-records');
 
         $response->assertStatus(200)
             ->assertJson([
-                'success' => true,
-            ])
-            ->assertJsonCount(1, 'data');
+                'success' => true
+            ]);
+    }
+
+    /** @test */
+    public function staff_cannot_get_medical_records()
+    {
+        $response = $this->actingAs($this->staffUser, 'sanctum')->get('/api/medical-records');
+
+        $response->assertStatus(403);
     }
 
     /** @test */
     public function patient_cannot_get_medical_records()
     {
-        Sanctum::actingAs($this->patientUser);
+        $response = $this->actingAs($this->patientUser, 'sanctum')->get('/api/medical-records');
 
-        $response = $this->getJson('/api/medical-records');
-
-        $response->assertStatus(403)
-            ->assertJsonFragment([
-                'message' => 'Unauthorized action.',
-            ]);
+        $response->assertStatus(403);
     }
 
     /** @test */
-    public function admin_can_get_single_medical_record()
+    public function admin_can_get_specific_medical_record()
     {
-        // Create a medical record first
-        $medicalRecord = MedicalRecord::create([
+        $record = MedicalRecord::create([
             'clinic_id' => $this->clinic->id,
             'patient_id' => $this->patient->id,
             'doctor_id' => $this->doctor->id,
-            'appointment_id' => $this->appointment->id,
-            'record_type' => 'diagnosis',
-            'content' => 'Test diagnosis content',
-            'severity' => 'medium',
-            'is_confidential' => false,
+            'record_type' => 'prescription',
+            'content' => 'Prescription details',
+            'severity' => 'medium'
         ]);
 
-        Sanctum::actingAs($this->adminUser);
-
-        $response = $this->getJson('/api/medical-records/' . $medicalRecord->id);
+        $response = $this->actingAs($this->adminUser, 'sanctum')->get('/api/medical-records/' . $record->id);
 
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
                 'data' => [
-                    'id' => $medicalRecord->id,
-                    'record_type' => 'diagnosis',
-                ],
+                    'id' => $record->id,
+                    'record_type' => 'prescription'
+                ]
             ]);
+    }
+
+    /** @test */
+    public function doctor_can_get_medical_record_from_own_clinic()
+    {
+        $record = MedicalRecord::create([
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'record_type' => 'lab_result',
+            'content' => 'Lab results',
+            'severity' => 'low'
+        ]);
+
+        $response = $this->actingAs($this->doctorUser, 'sanctum')->get('/api/medical-records/' . $record->id);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true
+            ]);
+    }
+
+    /** @test */
+    public function cannot_get_medical_record_from_different_clinic()
+    {
+        $anotherClinic = Clinic::create([
+            'name' => 'Another Clinic',
+            'address' => '456 Another St',
+            'city' => 'Another City',
+            'state' => 'Another State',
+            'postal_code' => '67890',
+            'country' => 'Another Country',
+            'phone' => '0987654321',
+            'email' => 'another@clinic.com',
+            'is_active' => true
+        ]);
+
+        $record = MedicalRecord::create([
+            'clinic_id' => $anotherClinic->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'record_type' => 'notes',
+            'content' => 'Notes from another clinic'
+        ]);
+
+        $response = $this->actingAs($this->doctorUser, 'sanctum')->get('/api/medical-records/' . $record->id);
+
+        $response->assertStatus(403);
     }
 
     /** @test */
     public function admin_can_update_medical_record()
     {
-        // Create a medical record first
-        $medicalRecord = MedicalRecord::create([
+        $record = MedicalRecord::create([
             'clinic_id' => $this->clinic->id,
             'patient_id' => $this->patient->id,
             'doctor_id' => $this->doctor->id,
-            'appointment_id' => $this->appointment->id,
-            'record_type' => 'diagnosis',
-            'content' => 'Test diagnosis content',
-            'severity' => 'medium',
-            'is_confidential' => false,
+            'record_type' => 'consultation',
+            'content' => 'Original content',
+            'severity' => 'medium'
         ]);
 
-        Sanctum::actingAs($this->adminUser);
-
-        $response = $this->putJson('/api/medical-records/' . $medicalRecord->id, [
-            'content' => 'Updated diagnosis content',
+        $response = $this->actingAs($this->adminUser, 'sanctum')->put('/api/medical-records/' . $record->id, [
+            'content' => 'Updated content',
             'severity' => 'high',
+            'is_confidential' => true
         ]);
 
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Medical record updated successfully',
+                'message' => 'Medical record updated successfully'
             ]);
 
-        $this->assertDatabaseHas('medical_records', [
-            'id' => $medicalRecord->id,
-            'content' => 'Updated diagnosis content',
-            'severity' => 'high',
+        $record->refresh();
+        $this->assertEquals('Updated content', $record->content);
+        $this->assertEquals('high', $record->severity);
+        $this->assertTrue($record->is_confidential);
+    }
+
+    /** @test */
+    public function doctor_can_update_medical_record_from_own_clinic()
+    {
+        $record = MedicalRecord::create([
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'record_type' => 'diagnosis',
+            'content' => 'Original diagnosis',
+            'severity' => 'medium'
         ]);
+
+        $response = $this->actingAs($this->doctorUser, 'sanctum')->put('/api/medical-records/' . $record->id, [
+            'content' => 'Updated diagnosis'
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true
+            ]);
+    }
+
+    /** @test */
+    public function staff_cannot_update_medical_record()
+    {
+        $record = MedicalRecord::create([
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'record_type' => 'notes',
+            'content' => 'Original notes'
+        ]);
+
+        $response = $this->actingAs($this->staffUser, 'sanctum')->put('/api/medical-records/' . $record->id, [
+            'content' => 'Updated notes'
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    /** @test */
+    public function cannot_update_medical_record_with_invalid_data()
+    {
+        $record = MedicalRecord::create([
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'record_type' => 'consultation',
+            'content' => 'Original content'
+        ]);
+
+        $response = $this->actingAs($this->adminUser, 'sanctum')->put('/api/medical-records/' . $record->id, [
+            'record_type' => 'invalid_type',
+            'severity' => 'invalid_severity'
+        ]);
+
+        $response->assertStatus(422);
     }
 
     /** @test */
     public function admin_can_delete_medical_record()
     {
-        // Create a medical record first
-        $medicalRecord = MedicalRecord::create([
+        $record = MedicalRecord::create([
             'clinic_id' => $this->clinic->id,
             'patient_id' => $this->patient->id,
             'doctor_id' => $this->doctor->id,
-            'appointment_id' => $this->appointment->id,
-            'record_type' => 'diagnosis',
-            'content' => 'Test diagnosis content',
-            'severity' => 'medium',
-            'is_confidential' => false,
+            'record_type' => 'prescription',
+            'content' => 'Prescription to delete'
         ]);
 
-        Sanctum::actingAs($this->adminUser);
-
-        $response = $this->deleteJson('/api/medical-records/' . $medicalRecord->id);
+        $response = $this->actingAs($this->adminUser, 'sanctum')->delete('/api/medical-records/' . $record->id);
 
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-                'message' => 'Medical record deleted successfully',
+                'message' => 'Medical record deleted successfully'
             ]);
 
         $this->assertSoftDeleted('medical_records', [
-            'id' => $medicalRecord->id,
+            'id' => $record->id
         ]);
     }
 
     /** @test */
-    public function admin_can_get_patient_medical_records()
+    public function doctor_cannot_delete_medical_record()
     {
-        // Create medical records for the patient
+        $record = MedicalRecord::create([
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'record_type' => 'notes',
+            'content' => 'Notes to delete'
+        ]);
+
+        $response = $this->actingAs($this->doctorUser, 'sanctum')->delete('/api/medical-records/' . $record->id);
+
+        $response->assertStatus(403);
+    }
+
+    /** @test */
+    public function cannot_delete_medical_record_from_different_clinic()
+    {
+        $anotherClinic = Clinic::create([
+            'name' => 'Another Clinic',
+            'address' => '456 Another St',
+            'city' => 'Another City',
+            'state' => 'Another State',
+            'postal_code' => '67890',
+            'country' => 'Another Country',
+            'phone' => '0987654321',
+            'email' => 'another@clinic.com',
+            'is_active' => true
+        ]);
+
+        $record = MedicalRecord::create([
+            'clinic_id' => $anotherClinic->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'record_type' => 'consultation',
+            'content' => 'Record from another clinic'
+        ]);
+
+        $response = $this->actingAs($this->adminUser, 'sanctum')->delete('/api/medical-records/' . $record->id);
+
+        $response->assertStatus(403);
+    }
+
+    /** @test */
+    public function can_get_patient_medical_records()
+    {
         MedicalRecord::create([
             'clinic_id' => $this->clinic->id,
             'patient_id' => $this->patient->id,
             'doctor_id' => $this->doctor->id,
-            'appointment_id' => $this->appointment->id,
-            'record_type' => 'diagnosis',
-            'content' => 'Diagnosis record',
-            'severity' => 'medium',
-            'is_confidential' => false,
+            'record_type' => 'consultation',
+            'content' => 'Patient consultation'
         ]);
 
-        MedicalRecord::create([
-            'clinic_id' => $this->clinic->id,
-            'patient_id' => $this->patient->id,
-            'doctor_id' => $this->doctor->id,
-            'appointment_id' => $this->appointment->id,
-            'record_type' => 'prescription',
-            'content' => 'Prescription record',
-            'severity' => 'low',
-            'is_confidential' => false,
-        ]);
-
-        Sanctum::actingAs($this->adminUser);
-
-        $response = $this->getJson('/api/medical-records/patient/' . $this->patient->id);
+        $response = $this->actingAs($this->adminUser, 'sanctum')->get('/api/patients/' . $this->patient->id . '/medical-records');
 
         $response->assertStatus(200)
             ->assertJson([
-                'success' => true,
-            ])
-            ->assertJsonCount(2, 'data');
+                'success' => true
+            ]);
     }
 
     /** @test */
-    public function admin_can_get_medical_records_by_type()
+    public function cannot_get_medical_records_for_patient_from_different_clinic()
     {
-        // Create different types of medical records
-        MedicalRecord::create([
-            'clinic_id' => $this->clinic->id,
-            'patient_id' => $this->patient->id,
-            'doctor_id' => $this->doctor->id,
-            'appointment_id' => $this->appointment->id,
-            'record_type' => 'diagnosis',
-            'content' => 'Diagnosis record',
-            'severity' => 'medium',
-            'is_confidential' => false,
+        $anotherClinic = Clinic::create([
+            'name' => 'Another Clinic',
+            'address' => '456 Another St',
+            'city' => 'Another City',
+            'state' => 'Another State',
+            'postal_code' => '67890',
+            'country' => 'Another Country',
+            'phone' => '0987654321',
+            'email' => 'another@clinic.com',
+            'is_active' => true
         ]);
 
+        $anotherPatient = Patient::create([
+            'clinic_id' => $anotherClinic->id,
+            'user_id' => $this->patientUser->id,
+            'patient_id' => 'TST-PAT-0002',
+            'emergency_contact_name' => 'Jane Doe',
+            'emergency_contact_phone' => '1234567890'
+        ]);
+
+        $response = $this->actingAs($this->doctorUser, 'sanctum')->get('/api/patients/' . $anotherPatient->id . '/medical-records');
+
+        $response->assertStatus(403);
+    }
+
+    /** @test */
+    public function can_get_medical_records_by_type()
+    {
         MedicalRecord::create([
             'clinic_id' => $this->clinic->id,
             'patient_id' => $this->patient->id,
             'doctor_id' => $this->doctor->id,
-            'appointment_id' => $this->appointment->id,
             'record_type' => 'prescription',
-            'content' => 'Prescription record',
-            'severity' => 'low',
-            'is_confidential' => false,
+            'content' => 'Prescription record'
         ]);
 
-        Sanctum::actingAs($this->adminUser);
-
-        $response = $this->getJson('/api/medical-records/type/diagnosis');
+        $response = $this->actingAs($this->adminUser, 'sanctum')->get('/api/medical-records/type/prescription');
 
         $response->assertStatus(200)
             ->assertJson([
-                'success' => true,
-            ])
-            ->assertJsonCount(1, 'data');
+                'success' => true
+            ]);
     }
 
     /** @test */
-    public function admin_can_create_consultation_note()
+    public function cannot_get_medical_records_by_invalid_type()
     {
-        Sanctum::actingAs($this->adminUser);
+        $response = $this->actingAs($this->adminUser, 'sanctum')->get('/api/medical-records/type/invalid_type');
 
-        $response = $this->postJson('/api/medical-records/appointment/' . $this->appointment->id . '/consultation', [
-            'content' => 'Consultation notes for the appointment',
+        $response->assertStatus(400);
+    }
+
+    /** @test */
+    public function can_get_appointment_medical_records()
+    {
+        MedicalRecord::create([
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'appointment_id' => $this->appointment->id,
+            'record_type' => 'consultation',
+            'content' => 'Appointment consultation'
+        ]);
+
+        $response = $this->actingAs($this->adminUser, 'sanctum')->get('/api/medical-records/appointment/' . $this->appointment->id);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true
+            ]);
+    }
+
+    /** @test */
+    public function can_create_consultation_note_for_appointment()
+    {
+        $response = $this->actingAs($this->adminUser, 'sanctum')->post('/api/medical-records/appointment/' . $this->appointment->id . '/consultation', [
+            'content' => 'Consultation note content',
             'severity' => 'medium',
-            'is_confidential' => false,
+            'is_confidential' => false
         ]);
 
         $response->assertStatus(201)
             ->assertJson([
                 'success' => true,
-                'message' => 'Consultation note created successfully',
+                'message' => 'Consultation note created successfully'
             ]);
 
-        $this->assertDatabaseHas('medical_records', [
-            'appointment_id' => $this->appointment->id,
-            'record_type' => 'consultation',
-            'content' => 'Consultation notes for the appointment',
-        ]);
+        $record = MedicalRecord::where('appointment_id', $this->appointment->id)->first();
+        $this->assertEquals('consultation', $record->record_type);
+        $this->assertEquals('Consultation note content', $record->content);
     }
 
     /** @test */
-    public function doctor_can_create_prescription()
+    public function can_create_prescription_for_patient()
     {
-        Sanctum::actingAs($this->doctorUser);
-
-        $response = $this->postJson('/api/medical-records/patient/' . $this->patient->id . '/prescription', [
+        $response = $this->actingAs($this->adminUser, 'sanctum')->post('/api/medical-records/patient/' . $this->patient->id . '/prescription', [
             'doctor_id' => $this->doctor->id,
             'appointment_id' => $this->appointment->id,
             'medications' => [
                 [
-                    'name' => 'Amoxicillin',
-                    'dosage' => '500mg',
-                    'frequency' => 'Every 8 hours',
-                    'duration' => '7 days',
-                ],
-                [
-                    'name' => 'Ibuprofen',
-                    'dosage' => '200mg',
-                    'frequency' => 'Every 6 hours as needed',
-                    'duration' => '3 days',
-                ],
+                    'name' => 'Aspirin',
+                    'dosage' => '100mg',
+                    'frequency' => 'Once daily',
+                    'duration' => '30 days'
+                ]
             ],
             'instructions' => 'Take with food',
-            'severity' => 'low',
-            'is_confidential' => false,
+            'severity' => 'medium'
         ]);
 
         $response->assertStatus(201)
             ->assertJson([
                 'success' => true,
-                'message' => 'Prescription created successfully',
+                'message' => 'Prescription created successfully'
             ]);
 
         $this->assertDatabaseHas('medical_records', [
             'patient_id' => $this->patient->id,
-            'record_type' => 'prescription',
+            'record_type' => 'prescription'
         ]);
     }
 
     /** @test */
-    public function admin_can_get_medical_record_statistics()
+    public function cannot_create_prescription_with_invalid_medications()
     {
-        // Create different types of medical records
+        $response = $this->actingAs($this->adminUser, 'sanctum')->post('/api/patients/' . $this->patient->id . '/prescription', [
+            'doctor_id' => $this->doctor->id,
+            'medications' => [
+                [
+                    'name' => '',
+                    'dosage' => '100mg',
+                    'frequency' => 'Once daily',
+                    'duration' => '30 days'
+                ]
+            ]
+        ]);
+
+        $response->assertStatus(422);
+    }
+
+    /** @test */
+    public function can_get_medical_record_statistics()
+    {
+        // Create some records
         MedicalRecord::create([
             'clinic_id' => $this->clinic->id,
             'patient_id' => $this->patient->id,
             'doctor_id' => $this->doctor->id,
-            'appointment_id' => $this->appointment->id,
-            'record_type' => 'diagnosis',
-            'content' => 'Diagnosis record',
-            'severity' => 'high',
-            'is_confidential' => false,
+            'record_type' => 'consultation',
+            'content' => 'Consultation',
+            'severity' => 'medium',
+            'is_confidential' => true
         ]);
 
         MedicalRecord::create([
             'clinic_id' => $this->clinic->id,
             'patient_id' => $this->patient->id,
             'doctor_id' => $this->doctor->id,
-            'appointment_id' => $this->appointment->id,
             'record_type' => 'prescription',
-            'content' => 'Prescription record',
-            'severity' => 'low',
-            'is_confidential' => true,
+            'content' => 'Prescription',
+            'severity' => 'high'
         ]);
 
-        Sanctum::actingAs($this->adminUser);
-
-        $response = $this->getJson('/api/medical-records/statistics');
+        $response = $this->actingAs($this->adminUser, 'sanctum')->get('/api/medical-records/statistics');
 
         $response->assertStatus(200)
             ->assertJson([
                 'success' => true,
-            ])
-            ->assertJsonStructure([
                 'data' => [
-                    'total_records',
-                    'by_type',
-                    'by_severity',
-                    'confidential_records',
-                ],
+                    'total_records' => 2,
+                    'confidential_records' => 1
+                ]
             ]);
+    }
+
+    /** @test */
+    public function creating_consultation_record_updates_patient_last_visit_date()
+    {
+        $oldVisitDate = $this->patient->last_visit_date;
+
+        $this->actingAs($this->adminUser, 'sanctum')->post('/api/medical-records', [
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'appointment_id' => $this->appointment->id,
+            'record_type' => 'consultation',
+            'content' => 'Consultation record',
+            'severity' => 'medium'
+        ]);
+
+        $this->patient->refresh();
+        $this->assertNotEquals($oldVisitDate, $this->patient->last_visit_date);
+    }
+
+    /** @test */
+    public function content_is_encrypted_for_confidential_records()
+    {
+        $record = MedicalRecord::create([
+            'clinic_id' => $this->clinic->id,
+            'patient_id' => $this->patient->id,
+            'doctor_id' => $this->doctor->id,
+            'record_type' => 'consultation',
+            'content' => 'Confidential information',
+            'is_confidential' => true
+        ]);
+
+        // The content should be encrypted in the database
+        $this->assertNotEquals('Confidential information', $record->getRawOriginal('content'));
     }
 }

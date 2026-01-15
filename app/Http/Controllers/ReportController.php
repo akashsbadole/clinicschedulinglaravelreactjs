@@ -17,6 +17,18 @@ class ReportController extends Controller
      */
     public function dashboard(Request $request)
     {
+        \Log::info('Dashboard request received', [
+            'user_id' => $request->user() ? $request->user()->id : 'null',
+            'auth_check' => auth()->check(),
+            'headers' => $request->headers->all(),
+            'bearer_token' => $request->bearerToken(),
+        ]);
+
+        if (!$request->user()) {
+            \Log::error('No authenticated user in dashboard request');
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
         $clinicId = $request->user()->clinic_id;
 
         // Total patients

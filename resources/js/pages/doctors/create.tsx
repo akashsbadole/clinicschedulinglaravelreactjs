@@ -17,9 +17,11 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import apiService from '@/lib/api';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Save } from 'lucide-react';
+import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -45,9 +47,21 @@ export default function DoctorsCreate() {
         bio: '',
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [apiProcessing, setApiProcessing] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        post('/api/doctors');
+        setApiProcessing(true);
+        try {
+            await apiService.post('/doctors', data);
+            router.visit('/doctors');
+        } catch (err: any) {
+            if (err.response?.data?.errors) {
+                // Manually set errors if needed
+            }
+        } finally {
+            setApiProcessing(false);
+        }
     };
 
     return (
@@ -298,9 +312,14 @@ export default function DoctorsCreate() {
                             <Button variant="outline" asChild>
                                 <Link href="/doctors">Cancel</Link>
                             </Button>
-                            <Button type="submit" disabled={processing}>
+                            <Button
+                                type="submit"
+                                disabled={processing || apiProcessing}
+                            >
                                 <Save className="mr-2 h-4 w-4" />
-                                {processing ? 'Creating...' : 'Create Doctor'}
+                                {processing || apiProcessing
+                                    ? 'Creating...'
+                                    : 'Create Doctor'}
                             </Button>
                         </div>
                     </div>

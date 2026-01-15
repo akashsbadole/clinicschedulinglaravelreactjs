@@ -1,0 +1,428 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Patient;
+use App\Models\Encounter;
+use App\Models\ClinicalNote;
+use App\Models\Diagnosis;
+use App\Models\TreatmentPlan;
+use App\Models\Medication;
+use App\Models\LabOrder;
+use App\Models\Icd10Code;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
+
+class AIAssistedController extends Controller
+{
+    // AI-Assisted Diagnosis Suggestion
+    public function suggestDiagnosis(Request $request)
+    {
+        $validated = $request->validate([
+            'patient_id' => 'required|exists:patients,id',
+            'symptoms' => 'required|string',
+            'medical_history' => 'nullable|string',
+            'current_medications' => 'nullable|string',
+            'vital_signs' => 'nullable|array',
+        ]);
+
+        // In a real implementation, this would call an AI/ML service
+        // For now, we'll return mock data
+        $suggestedDiagnoses = [
+            ['code' => 'J12.9', 'description' => 'Viral pneumonia, unspecified', 'confidence' => 0.85],
+            ['code' => 'R05', 'description' => 'Cough', 'confidence' => 0.78],
+            ['code' => 'J11.1', 'description' => 'Influenza with other respiratory manifestations', 'confidence' => 0.72],
+        ];
+
+        $suggestedTests = [
+            ['code' => 'CBC', 'description' => 'Complete Blood Count', 'priority' => 'high'],
+            ['code' => 'CXR', 'description' => 'Chest X-ray', 'priority' => 'high'],
+            ['code' => 'CRP', 'description' => 'C-reactive protein', 'priority' => 'medium'],
+        ];
+
+        return response()->json([
+            'suggested_diagnoses' => $suggestedDiagnoses,
+            'suggested_tests' => $suggestedTests,
+            'confidence_level' => 'medium',
+            'notes' => 'Consider patient\'s travel history and vaccination status',
+        ]);
+    }
+
+    // AI-Assisted Treatment Recommendation
+    public function suggestTreatment(Request $request)
+    {
+        $validated = $request->validate([
+            'patient_id' => 'required|exists:patients,id',
+            'diagnosis_codes' => 'required|array',
+            'diagnosis_codes.*' => 'string',
+            'allergies' => 'nullable|array',
+            'current_medications' => 'nullable|array',
+            'age' => 'nullable|integer',
+            'weight' => 'nullable|numeric',
+            'renal_function' => 'nullable|string',
+            'hepatic_function' => 'nullable|string',
+        ]);
+
+        // Mock AI treatment suggestions
+        $suggestedMedications = [
+            [
+                'name' => 'Amoxicillin',
+                'dosage' => '500mg',
+                'frequency' => 'every 8 hours',
+                'duration' => '7 days',
+                'route' => 'oral',
+                'confidence' => 0.92,
+                'notes' => 'First-line antibiotic for community-acquired pneumonia'
+            ],
+            [
+                'name' => 'Azithromycin',
+                'dosage' => '500mg',
+                'frequency' => 'once daily',
+                'duration' => '3 days',
+                'route' => 'oral',
+                'confidence' => 0.88,
+                'notes' => 'Alternative for penicillin-allergic patients'
+            ],
+        ];
+
+        $suggestedNonPharmacological = [
+            'Rest and hydration',
+            'Fever management with acetaminophen if needed',
+            'Follow-up chest X-ray in 4-6 weeks',
+            'Smoking cessation counseling if applicable',
+        ];
+
+        $monitoringRecommendations = [
+            'Monitor temperature every 6 hours',
+            'Assess respiratory rate and oxygen saturation',
+            'Watch for signs of clinical deterioration',
+            'Repeat CBC if fever persists beyond 48 hours',
+        ];
+
+        return response()->json([
+            'suggested_medications' => $suggestedMedications,
+            'suggested_non_pharmacological' => $suggestedNonPharmacological,
+            'monitoring_recommendations' => $monitoringRecommendations,
+            'follow_up_recommendation' => 'Schedule follow-up in 2 weeks or sooner if symptoms worsen',
+            'referral_recommendation' => null,
+        ]);
+    }
+
+    // AI-Assisted Clinical Documentation
+    public function generateClinicalNote(Request $request)
+    {
+        $validated = $request->validate([
+            'encounter_id' => 'required|exists:encounters,id',
+            'chief_complaint' => 'required|string',
+            'history_of_present_illness' => 'required|string',
+            'physical_exam_findings' => 'required|string',
+            'assessment' => 'required|string',
+            'plan' => 'required|string',
+            'style' => 'nullable|string|in:detailed,concise,bullet_points',
+        ]);
+
+        // Mock AI-generated clinical note
+        $generatedNote = "SOAP Note - Generated by AI Assistant
+
+Subjective:
+Chief Complaint: {$validated['chief_complaint']}
+
+History of Present Illness: {$validated['history_of_present_illness']}
+
+Objective:
+Physical Examination Findings: {$validated['physical_exam_findings']}
+
+Assessment: {$validated['assessment']}
+
+Plan: {$validated['plan']}
+
+This note was generated by AI Assistant and should be reviewed and edited by a healthcare professional before finalizing.";
+
+        return response()->json([
+            'generated_note' => $generatedNote,
+            'confidence_score' => 0.87,
+            'suggestions_for_improvement' => [
+                'Consider adding specific vital signs',
+                'Include any relevant negative findings',
+                'Add patient education provided',
+            ],
+        ]);
+    }
+
+    // AI-Assisted ICD-10 Coding
+    public function suggestIcd10Codes(Request $request)
+    {
+        $validated = $request->validate([
+            'clinical_text' => 'required|string',
+            'patient_age' => 'nullable|integer',
+            'patient_gender' => 'nullable|string',
+            'context' => 'nullable|string',
+        ]);
+
+        // Mock ICD-10 code suggestions
+        $suggestedCodes = [
+            [
+                'code' => 'J12.9',
+                'description' => 'Viral pneumonia, unspecified',
+                'confidence' => 0.91,
+                'chapter' => 'X - Diseases of the respiratory system',
+            ],
+            [
+                'code' => 'R05',
+                'description' => 'Cough',
+                'confidence' => 0.85,
+                'chapter' => 'XVIII - Symptoms, signs and abnormal clinical and laboratory findings',
+            ],
+            [
+                'code' => 'J11.1',
+                'description' => 'Influenza with other respiratory manifestations',
+                'confidence' => 0.78,
+                'chapter' => 'X - Diseases of the respiratory system',
+            ],
+        ];
+
+        return response()->json([
+            'suggested_codes' => $suggestedCodes,
+            'coding_notes' => 'Consider adding secondary codes for any comorbidities or complications',
+            'documentation_improvement_suggestions' => [
+                'Specify laterality if applicable',
+                'Document severity where relevant',
+                'Include any causal relationships between conditions',
+            ],
+        ]);
+    }
+
+    // AI-Assisted Medication Interaction Check
+    public function checkMedicationInteractions(Request $request)
+    {
+        $validated = $request->validate([
+            'medications' => 'required|array',
+            'medications.*' => 'string',
+            'patient_id' => 'required|exists:patients,id',
+        ]);
+
+        $patient = Patient::find($validated['patient_id']);
+        
+        // Mock interaction checking
+        $interactions = [
+            [
+                'medication1' => 'Amoxicillin',
+                'medication2' => 'Warfarin',
+                'severity' => 'moderate',
+                'description' => 'Amoxicillin may enhance the anticoagulant effect of Warfarin',
+                'management' => 'Monitor INR more frequently when starting or stopping amoxicillin',
+                'evidence_level' => 'good',
+            ],
+            [
+                'medication1' => 'Azithromycin',
+                'medication2' => 'Simvastatin',
+                'severity' => 'moderate',
+                'description' => 'Azithromycin may increase the serum concentration of Simvastatin',
+                'management' => 'Consider temporary discontinuation of simvastatin or monitor for signs of myopathy',
+                'evidence_level' => 'fair',
+            ],
+        ];
+
+        $contraindications = [
+            [
+                'medication' => 'Amoxicillin',
+                'condition' => 'Penicillin allergy',
+                'severity' => 'high',
+                'recommendation' => 'Avoid amoxicillin in patients with known penicillin allergy',
+            ],
+        ];
+
+        return response()->json([
+            'interactions' => $interactions,
+            'contraindications' => $contraindications,
+            'patient_specific_warnings' => $patient->allergies ?? [],
+            'general_warnings' => [
+                'Always check for updated interaction information',
+                'Consider patient\'s renal and hepatic function',
+                'Monitor for adverse effects when starting new medications',
+            ],
+        ]);
+    }
+
+    // AI-Assisted Patient Risk Assessment
+    public function assessPatientRisk(Request $request)
+    {
+        $validated = $request->validate([
+            'patient_id' => 'required|exists:patients,id',
+            'parameters' => 'required|array',
+            'parameters.*' => 'string',
+        ]);
+
+        // Mock risk assessment
+        $riskAssessment = [
+            'overall_risk_score' => 42,
+            'risk_category' => 'moderate',
+            'specific_risks' => [
+                [
+                    'type' => 'Cardiovascular',
+                    'score' => 38,
+                    'category' => 'moderate',
+                    'factors' => ['Hypertension', 'Family history of CAD', 'Sedentary lifestyle'],
+                ],
+                [
+                    'type' => 'Metabolic',
+                    'score' => 55,
+                    'category' => 'high',
+                    'factors' => ['Obesity (BMI 32)', 'Prediabetes', 'Dyslipidemia'],
+                ],
+                [
+                    'type' => 'Respiratory',
+                    'score' => 22,
+                    'category' => 'low',
+                    'factors' => ['Occasional shortness of breath on exertion'],
+                ],
+            ],
+            'recommendations' => [
+                'Lifestyle modifications (diet and exercise)',
+                'Regular cardiovascular risk monitoring',
+                'Consider statin therapy for lipid management',
+                'Blood pressure optimization',
+                'Diabetes screening',
+            ],
+            'preventive_measures' => [
+                'Annual influenza vaccination',
+                'Pneumococcal vaccination',
+                'Colorectal cancer screening',
+            ],
+        ];
+
+        return response()->json($riskAssessment);
+    }
+
+    // AI-Assisted Follow-up Recommendations
+    public function suggestFollowUp(Request $request)
+    {
+        $validated = $request->validate([
+            'encounter_id' => 'required|exists:encounters,id',
+            'diagnosis_codes' => 'required|array',
+            'treatment_plan' => 'required|string',
+            'patient_stability' => 'required|string|in:stable,improving,worsening,critical',
+        ]);
+
+        // Mock follow-up suggestions
+        $followUpRecommendations = [
+            'timing' => '2 weeks',
+            'type' => 'office visit',
+            'purpose' => 'Assess response to antibiotic therapy and monitor for complications',
+            'specific_monitoring' => [
+                'Resolution of symptoms (cough, fever)',
+                'Improvement in physical exam findings',
+                'No signs of clinical deterioration',
+                'Adverse effects from medications',
+            ],
+            'additional_testing' => [
+                'Repeat chest X-ray if symptoms persist',
+                'CBC if fever continues beyond 48 hours',
+            ],
+            'patient_instructions' => [
+                'Complete full course of antibiotics',
+                'Monitor temperature at home',
+                'Return sooner if shortness of breath worsens',
+                'Adequate hydration and rest',
+            ],
+        ];
+
+        return response()->json($followUpRecommendations);
+    }
+
+    // AI-Assisted Clinical Decision Support
+    public function clinicalDecisionSupport(Request $request)
+    {
+        $validated = $request->validate([
+            'patient_id' => 'required|exists:patients,id',
+            'clinical_scenario' => 'required|string',
+            'relevant_data' => 'nullable|array',
+        ]);
+
+        // Mock clinical decision support
+        $decisionSupport = [
+            'evidence_summary' => [
+                'condition' => 'Community-acquired pneumonia',
+                'treatment_options' => [
+                    [
+                        'option' => 'Amoxicillin 500mg TID for 7 days',
+                        'evidence_level' => 'A',
+                        'recommendation_strength' => 'strong',
+                        'source' => 'IDSA/ATS guidelines',
+                    ],
+                    [
+                        'option' => 'Azithromycin 500mg daily for 3 days',
+                        'evidence_level' => 'B',
+                        'recommendation_strength' => 'moderate',
+                        'source' => 'IDSA/ATS guidelines',
+                    ],
+                ],
+                'key_considerations' => [
+                    'Local antibiotic resistance patterns',
+                    'Patient allergy history',
+                    'Severity of illness',
+                    'Comorbid conditions',
+                ],
+            ],
+            'patient_specific_factors' => [
+                'Allergies: None known',
+                'Renal function: Normal',
+                'Hepatic function: Normal',
+                'Current medications: None',
+            ],
+            'recommendation' => [
+                'preferred_option' => 'Amoxicillin 500mg TID for 7 days',
+                'alternative_option' => 'Azithromycin 500mg daily for 3 days (if penicillin allergy)',
+                'monitoring_plan' => 'Follow-up in 2 weeks or sooner if symptoms worsen',
+                'patient_education' => 'Complete full antibiotic course, monitor for adverse effects',
+            ],
+        ];
+
+        return response()->json($decisionSupport);
+    }
+
+    // AI-Assisted Documentation Review
+    public function reviewDocumentation(Request $request)
+    {
+        $validated = $request->validate([
+            'document_type' => 'required|string|in:clinical_note,discharge_summary,consultation_report',
+            'document_content' => 'required|string',
+            'checklist' => 'nullable|array',
+        ]);
+
+        // Mock documentation review
+        $reviewResults = [
+            'completeness_score' => 85,
+            'missing_elements' => [
+                'Vital signs not documented',
+                'Allergies section incomplete',
+                'Patient education provided not specified',
+            ],
+            'quality_issues' => [
+                'Some sections lack sufficient detail',
+                'Assessment could be more specific',
+                'Plan missing timeline for follow-up',
+            ],
+            'suggestions' => [
+                'Add specific vital signs with timestamps',
+                'Document NKDA (No Known Drug Allergies) explicitly',
+                'Include specific patient education topics covered',
+                'Add expected timeline for symptom resolution',
+            ],
+            'compliance_check' => [
+                'HIPAA compliance: Pass',
+                'Institutional documentation standards: Partial',
+                'Billing documentation requirements: Pass',
+            ],
+        ];
+
+        return response()->json($reviewResults);
+    }
+
+    // AI-Assisted View for integration testing
+    public function aiAssistantView()
+    {
+        return Inertia::render('AIAssistant/Index');
+    }
+}

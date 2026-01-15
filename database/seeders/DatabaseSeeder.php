@@ -103,5 +103,11 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // Seed services and settings
+        $this->call([
+            ServiceSeeder::class,
+            SettingSeeder::class,
+        ]);
     }
 }

@@ -33,6 +33,12 @@ class AuthController extends Controller
 
         $token = $user->createToken($request->device_name)->plainTextToken;
 
+        \Log::info('Login successful', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'token_prefix' => substr($token, 0, 20) . '...',
+        ]);
+
         ActivityLog::log('login', 'User logged in', [
             'device_name' => $request->device_name,
             'email' => $user->email,

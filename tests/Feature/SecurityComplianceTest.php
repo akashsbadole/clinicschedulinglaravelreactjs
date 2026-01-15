@@ -198,7 +198,7 @@ class SecurityComplianceTest extends TestCase
         ]);
 
         // Run cleanup command with dry-run
-        $this->artisan('app:cleanup-old-data', ['--dry-run' => true])
+        $this->artisan('data:cleanup', ['--dry-run' => true])
              ->expectsOutput('Would delete 1 audit logs older than 2555 days')
              ->assertExitCode(0);
 

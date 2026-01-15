@@ -193,3 +193,104 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::get('/compliance/summary', [ComplianceController::class, 'complianceSummary']);
     Route::get('/compliance/export', [ComplianceController::class, 'exportReport']);
 });
+
+// EMR - Encounter Management Routes
+Route::middleware(['auth:sanctum', 'role:admin,doctor,staff'])->group(function () {
+    Route::get('/encounters', [\App\Http\Controllers\EncounterController::class, 'index']);
+    Route::post('/encounters', [\App\Http\Controllers\EncounterController::class, 'store']);
+    Route::get('/encounters/{id}', [\App\Http\Controllers\EncounterController::class, 'show']);
+    Route::put('/encounters/{id}', [\App\Http\Controllers\EncounterController::class, 'update']);
+    Route::post('/encounters/{id}/complete', [\App\Http\Controllers\EncounterController::class, 'complete']);
+    Route::get('/patients/{patientId}/encounters', [\App\Http\Controllers\EncounterController::class, 'getPatientEncounters']);
+    Route::get('/encounters/active', [\App\Http\Controllers\EncounterController::class, 'getActiveEncounters']);
+    Route::get('/encounters/status/{status}', [\App\Http\Controllers\EncounterController::class, 'getEncountersByStatus']);
+});
+
+// EMR - Vital Signs Management Routes
+Route::middleware(['auth:sanctum', 'role:admin,doctor,staff'])->group(function () {
+    Route::get('/vital-signs', [\App\Http\Controllers\VitalSignsController::class, 'index']);
+    Route::post('/vital-signs', [\App\Http\Controllers\VitalSignsController::class, 'store']);
+    Route::get('/vital-signs/{id}', [\App\Http\Controllers\VitalSignsController::class, 'show']);
+    Route::put('/vital-signs/{id}', [\App\Http\Controllers\VitalSignsController::class, 'update']);
+    Route::get('/encounters/{encounterId}/vital-signs', [\App\Http\Controllers\VitalSignsController::class, 'getEncounterVitalSigns']);
+    Route::get('/patients/{patientId}/vital-signs', [\App\Http\Controllers\VitalSignsController::class, 'getPatientVitalSigns']);
+    Route::get('/patients/{patientId}/vital-signs/latest', [\App\Http\Controllers\VitalSignsController::class, 'getLatestPatientVitalSigns']);
+});
+
+// EMR - Clinical Notes Management Routes
+Route::middleware(['auth:sanctum', 'role:admin,doctor,staff'])->group(function () {
+    Route::get('/clinical-notes', [\App\Http\Controllers\ClinicalNotesController::class, 'index']);
+    Route::post('/clinical-notes', [\App\Http\Controllers\ClinicalNotesController::class, 'store']);
+    Route::get('/clinical-notes/{id}', [\App\Http\Controllers\ClinicalNotesController::class, 'show']);
+    Route::put('/clinical-notes/{id}', [\App\Http\Controllers\ClinicalNotesController::class, 'update']);
+    Route::get('/encounters/{encounterId}/clinical-notes', [\App\Http\Controllers\ClinicalNotesController::class, 'getEncounterNotes']);
+    Route::get('/patients/{patientId}/clinical-notes', [\App\Http\Controllers\ClinicalNotesController::class, 'getPatientNotes']);
+    Route::get('/clinical-notes/type/{type}', [\App\Http\Controllers\ClinicalNotesController::class, 'getNotesByType']);
+    Route::get('/clinical-notes/search', [\App\Http\Controllers\ClinicalNotesController::class, 'search']);
+});
+
+// EMR - Diagnosis Management Routes
+Route::middleware(['auth:sanctum', 'role:admin,doctor,staff'])->group(function () {
+    Route::get('/diagnoses', [\App\Http\Controllers\DiagnosisController::class, 'index']);
+    Route::post('/diagnoses', [\App\Http\Controllers\DiagnosisController::class, 'store']);
+    Route::get('/diagnoses/{id}', [\App\Http\Controllers\DiagnosisController::class, 'show']);
+    Route::put('/diagnoses/{id}', [\App\Http\Controllers\DiagnosisController::class, 'update']);
+    Route::get('/encounters/{encounterId}/diagnoses', [\App\Http\Controllers\DiagnosisController::class, 'getEncounterDiagnoses']);
+    Route::get('/patients/{patientId}/diagnoses', [\App\Http\Controllers\DiagnosisController::class, 'getPatientDiagnoses']);
+    Route::get('/diagnoses/type/{type}', [\App\Http\Controllers\DiagnosisController::class, 'getDiagnosesByType']);
+    Route::get('/diagnoses/status/{status}', [\App\Http\Controllers\DiagnosisController::class, 'getDiagnosesByStatus']);
+    Route::get('/diagnoses/search', [\App\Http\Controllers\DiagnosisController::class, 'search']);
+    Route::post('/diagnoses/{id}/confirm', [\App\Http\Controllers\DiagnosisController::class, 'confirm']);
+    Route::post('/diagnoses/{id}/resolve', [\App\Http\Controllers\DiagnosisController::class, 'resolve']);
+});
+
+// EMR - ICD-10 Codes Management Routes
+Route::middleware(['auth:sanctum', 'role:admin,doctor,staff'])->group(function () {
+    Route::get('/icd10-codes', [\App\Http\Controllers\Icd10CodeController::class, 'index']);
+    Route::get('/icd10-codes/{id}', [\App\Http\Controllers\Icd10CodeController::class, 'show']);
+    Route::get('/icd10-codes/search', [\App\Http\Controllers\Icd10CodeController::class, 'search']);
+    Route::get('/icd10-codes/category/{category}', [\App\Http\Controllers\Icd10CodeController::class, 'getByCategory']);
+    Route::get('/icd10-codes/chapter/{chapter}', [\App\Http\Controllers\Icd10CodeController::class, 'getByChapter']);
+    Route::get('/icd10-codes/active', [\App\Http\Controllers\Icd10CodeController::class, 'getActiveCodes']);
+});
+
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    Route::post('/icd10-codes', [\App\Http\Controllers\Icd10CodeController::class, 'store']);
+    Route::put('/icd10-codes/{id}', [\App\Http\Controllers\Icd10CodeController::class, 'update']);
+    Route::delete('/icd10-codes/{id}', [\App\Http\Controllers\Icd10CodeController::class, 'destroy']);
+    Route::post('/icd10-codes/import', [\App\Http\Controllers\Icd10CodeController::class, 'importFromCsv']);
+});
+
+// EMR - Lab Orders Management Routes
+Route::middleware(['auth:sanctum', 'role:admin,doctor,staff'])->group(function () {
+    Route::get('/lab-orders', [\App\Http\Controllers\LabOrderController::class, 'index']);
+    Route::post('/lab-orders', [\App\Http\Controllers\LabOrderController::class, 'store']);
+    Route::get('/lab-orders/{id}', [\App\Http\Controllers\LabOrderController::class, 'show']);
+    Route::put('/lab-orders/{id}', [\App\Http\Controllers\LabOrderController::class, 'update']);
+    Route::get('/encounters/{encounterId}/lab-orders', [\App\Http\Controllers\LabOrderController::class, 'getEncounterLabOrders']);
+    Route::get('/patients/{patientId}/lab-orders', [\App\Http\Controllers\LabOrderController::class, 'getPatientLabOrders']);
+    Route::get('/lab-orders/status/{status}', [\App\Http\Controllers\LabOrderController::class, 'getLabOrdersByStatus']);
+    Route::post('/lab-orders/{id}/status', [\App\Http\Controllers\LabOrderController::class, 'updateStatus']);
+    Route::post('/lab-orders/{id}/cancel', [\App\Http\Controllers\LabOrderController::class, 'cancel']);
+    Route::get('/lab-orders/search', [\App\Http\Controllers\LabOrderController::class, 'search']);
+    Route::get('/lab-orders/test-catalog', [\App\Http\Controllers\LabOrderController::class, 'getTestCatalog']);
+    Route::post('/lab-tests/{labTestId}/results', [\App\Http\Controllers\LabOrderController::class, 'addTestResults']);
+});
+
+// EMR - Treatment Plans Management Routes
+Route::middleware(['auth:sanctum', 'role:admin,doctor,staff'])->group(function () {
+    Route::get('/treatment-plans', [\App\Http\Controllers\TreatmentPlanController::class, 'index']);
+    Route::post('/treatment-plans', [\App\Http\Controllers\TreatmentPlanController::class, 'store']);
+    Route::get('/treatment-plans/{id}', [\App\Http\Controllers\TreatmentPlanController::class, 'show']);
+    Route::put('/treatment-plans/{id}', [\App\Http\Controllers\TreatmentPlanController::class, 'update']);
+    Route::get('/encounters/{encounterId}/treatment-plans', [\App\Http\Controllers\TreatmentPlanController::class, 'getEncounterTreatmentPlans']);
+    Route::get('/patients/{patientId}/treatment-plans', [\App\Http\Controllers\TreatmentPlanController::class, 'getPatientTreatmentPlans']);
+    Route::get('/treatment-plans/type/{type}', [\App\Http\Controllers\TreatmentPlanController::class, 'getTreatmentPlansByType']);
+    Route::get('/treatment-plans/status/{status}', [\App\Http\Controllers\TreatmentPlanController::class, 'getTreatmentPlansByStatus']);
+    Route::post('/treatment-plans/{id}/status', [\App\Http\Controllers\TreatmentPlanController::class, 'updateStatus']);
+    Route::post('/treatment-plans/{id}/complete', [\App\Http\Controllers\TreatmentPlanController::class, 'complete']);
+    Route::post('/treatment-plans/{id}/discontinue', [\App\Http\Controllers\TreatmentPlanController::class, 'discontinue']);
+    Route::get('/treatment-plans/search', [\App\Http\Controllers\TreatmentPlanController::class, 'search']);
+    Route::get('/patients/{patientId}/treatment-plans/active', [\App\Http\Controllers\TreatmentPlanController::class, 'getActivePatientTreatmentPlans']);
+    Route::get('/treatment-plans/medication-catalog', [\App\Http\Controllers\TreatmentPlanController::class, 'getMedicationCatalog']);
+});

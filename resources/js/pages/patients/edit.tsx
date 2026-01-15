@@ -17,9 +17,11 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import apiService from '@/lib/api';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Save } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -28,49 +30,167 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
     {
         title: 'Edit',
-        href: `/patients/${usePage().props.id}/edit`,
+        href: `/patients/${(usePage().props as any).id}/edit`,
     },
 ];
 
-export default function PatientsEdit() {
-    // Mock data - in real app, this would come from props
-    const patient = {
-        id: 1,
-        name: 'John Doe',
-        email: 'john@example.com',
-        phone: '+1234567890',
-        date_of_birth: '1990-01-01',
-        gender: 'male',
-        address: '123 Main St, City, State 12345',
-        blood_group: 'A+',
-        allergies: 'Penicillin',
-        chronic_conditions: 'Diabetes',
-        emergency_contact_name: 'Jane Doe',
-        emergency_contact_phone: '+0987654321',
+interface Patient {
+    id: number;
+    user: {
+        name: string;
+        email: string;
+        phone: string;
+        address: string;
     };
+    date_of_birth: string;
+    gender: string;
+    blood_type: string;
+    allergies: string;
+    medical_history: string;
+    emergency_contact_name: string;
+    emergency_contact_phone: string;
+}
 
-    const { data, setData, put, processing, errors } = useForm({
-        name: patient.name,
-        email: patient.email,
-        phone: patient.phone,
-        date_of_birth: patient.date_of_birth,
-        gender: patient.gender,
-        address: patient.address,
-        blood_group: patient.blood_group,
-        allergies: patient.allergies,
-        chronic_conditions: patient.chronic_conditions,
-        emergency_contact_name: patient.emergency_contact_name,
-        emergency_contact_phone: patient.emergency_contact_phone,
+export default function PatientsEdit() {
+    const { id } = usePage().props as any;
+    const [patient, setPatient] = useState<Patient | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [processing, setProcessing] = useState(false);
+    const [formErrors, setFormErrors] = useState<any>({});
+
+    const [formData, setFormData] = useState({
+        first_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+        date_of_birth: '',
+        gender: '',
+        address: '',
+        blood_type: '',
+        allergies: '',
+        medical_history: '',
+        emergency_contact_name: '',
+        emergency_contact_phone: '',
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        put(`/api/patients/${patient.id}`);
+    const fetchPatient = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = (await apiService.get(`/patients/${id}`)) as {
+                success: boolean;
+                data: Patient;
+            };
+            setPatient(response.data);
+            const nameParts = response.data.user.name.split(' ');
+            setFormData({
+                first_name: nameParts[0] || '',
+                last_name: nameParts.slice(1).join(' ') || '',
+                email: response.data.user.email,
+                phone: response.data.user.phone,
+                date_of_birth: response.data.date_of_birth,
+                gender: response.data.gender,
+                address: response.data.user.address,
+                blood_type: response.data.blood_type,
+                allergies: response.data.allergies || '',
+                medical_history: response.data.medical_history || '',
+                emergency_contact_name:
+                    response.data.emergency_contact_name || '',
+                emergency_contact_phone:
+                    response.data.emergency_contact_phone || '',
+            });
+        } catch (err) {
+            setError(
+                err instanceof Error ? err.message : 'Failed to load patient',
+            );
+        } finally {
+            setLoading(false);
+        }
     };
+
+    useEffect(() => {
+        fetchPatient();
+    }, [id]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            setProcessing(true);
+            setFormErrors({});
+            await apiService.put(`/patients/${id}`, formData);
+            // Redirect or show success
+            window.location.href = `/patients/${id}`;
+        } catch (err: any) {
+            if (err.response?.data?.errors) {
+                setFormErrors(err.response.data.errors);
+            } else {
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : 'Failed to update patient',
+                );
+            }
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <AppLayout breadcrumbs={breadcrumbs}>
+                <Head title="Edit Patient" />
+                <div className="flex flex-col gap-6 p-6">
+                    <div className="flex items-center gap-4">
+                        <div>
+                            <h1 className="text-2xl font-bold">Edit Patient</h1>
+                            <p className="text-muted-foreground">
+                                Loading patient data...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </AppLayout>
+        );
+    }
+
+    if (error) {
+        return (
+            <AppLayout breadcrumbs={breadcrumbs}>
+                <Head title="Edit Patient" />
+                <div className="flex flex-col gap-6 p-6">
+                    <div className="flex items-center gap-4">
+                        <div>
+                            <h1 className="text-2xl font-bold">Edit Patient</h1>
+                            <p className="text-red-600">{error}</p>
+                        </div>
+                    </div>
+                </div>
+            </AppLayout>
+        );
+    }
+
+    if (!patient) {
+        return (
+            <AppLayout breadcrumbs={breadcrumbs}>
+                <Head title="Edit Patient" />
+                <div className="flex flex-col gap-6 p-6">
+                    <div className="flex items-center gap-4">
+                        <div>
+                            <h1 className="text-2xl font-bold">Edit Patient</h1>
+                            <p className="text-muted-foreground">
+                                Patient not found
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </AppLayout>
+        );
+    }
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Edit Patient: ${patient.name}`} />
+            <Head title={`Edit Patient: ${patient.user.name}`} />
 
             <div className="flex flex-col gap-6 p-6">
                 <div className="flex items-center gap-4">
@@ -99,19 +219,47 @@ export default function PatientsEdit() {
                             </CardHeader>
                             <CardContent className="grid gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="name">Full Name *</Label>
+                                    <Label htmlFor="first_name">
+                                        First Name *
+                                    </Label>
                                     <Input
-                                        id="name"
-                                        value={data.name}
+                                        id="first_name"
+                                        value={formData.first_name}
                                         onChange={(e) =>
-                                            setData('name', e.target.value)
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                first_name: e.target.value,
+                                            }))
                                         }
-                                        placeholder="Enter full name"
+                                        placeholder="Enter first name"
                                         required
                                     />
-                                    {errors.name && (
+                                    {formErrors.first_name && (
                                         <p className="text-sm text-red-600">
-                                            {errors.name}
+                                            {formErrors.first_name}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="last_name">
+                                        Last Name *
+                                    </Label>
+                                    <Input
+                                        id="last_name"
+                                        value={formData.last_name}
+                                        onChange={(e) =>
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                last_name: e.target.value,
+                                            }))
+                                        }
+                                        placeholder="Enter last name"
+                                        required
+                                    />
+                                    {formErrors.last_name && (
+                                        <p className="text-sm text-red-600">
+                                            {formErrors.last_name}
                                         </p>
                                     )}
                                 </div>
@@ -121,15 +269,18 @@ export default function PatientsEdit() {
                                     <Input
                                         id="email"
                                         type="email"
-                                        value={data.email}
+                                        value={formData.email}
                                         onChange={(e) =>
-                                            setData('email', e.target.value)
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                email: e.target.value,
+                                            }))
                                         }
                                         placeholder="Enter email address"
                                     />
-                                    {errors.email && (
+                                    {formErrors.email && (
                                         <p className="text-sm text-red-600">
-                                            {errors.email}
+                                            {formErrors.email}
                                         </p>
                                     )}
                                 </div>
@@ -138,16 +289,19 @@ export default function PatientsEdit() {
                                     <Label htmlFor="phone">Phone *</Label>
                                     <Input
                                         id="phone"
-                                        value={data.phone}
+                                        value={formData.phone}
                                         onChange={(e) =>
-                                            setData('phone', e.target.value)
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                phone: e.target.value,
+                                            }))
                                         }
                                         placeholder="Enter phone number"
                                         required
                                     />
-                                    {errors.phone && (
+                                    {formErrors.phone && (
                                         <p className="text-sm text-red-600">
-                                            {errors.phone}
+                                            {formErrors.phone}
                                         </p>
                                     )}
                                 </div>
@@ -159,17 +313,17 @@ export default function PatientsEdit() {
                                     <Input
                                         id="date_of_birth"
                                         type="date"
-                                        value={data.date_of_birth}
+                                        value={formData.date_of_birth}
                                         onChange={(e) =>
-                                            setData(
-                                                'date_of_birth',
-                                                e.target.value,
-                                            )
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                date_of_birth: e.target.value,
+                                            }))
                                         }
                                     />
-                                    {errors.date_of_birth && (
+                                    {formErrors.date_of_birth && (
                                         <p className="text-sm text-red-600">
-                                            {errors.date_of_birth}
+                                            {formErrors.date_of_birth}
                                         </p>
                                     )}
                                 </div>
@@ -177,9 +331,12 @@ export default function PatientsEdit() {
                                 <div className="space-y-2">
                                     <Label htmlFor="gender">Gender</Label>
                                     <Select
-                                        value={data.gender}
+                                        value={formData.gender}
                                         onValueChange={(value) =>
-                                            setData('gender', value)
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                gender: value,
+                                            }))
                                         }
                                     >
                                         <SelectTrigger>
@@ -197,21 +354,24 @@ export default function PatientsEdit() {
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    {errors.gender && (
+                                    {formErrors.gender && (
                                         <p className="text-sm text-red-600">
-                                            {errors.gender}
+                                            {formErrors.gender}
                                         </p>
                                     )}
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="blood_group">
+                                    <Label htmlFor="blood_type">
                                         Blood Group
                                     </Label>
                                     <Select
-                                        value={data.blood_group}
+                                        value={formData.blood_type}
                                         onValueChange={(value) =>
-                                            setData('blood_group', value)
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                blood_type: value,
+                                            }))
                                         }
                                     >
                                         <SelectTrigger>
@@ -244,9 +404,9 @@ export default function PatientsEdit() {
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    {errors.blood_group && (
+                                    {formErrors.blood_type && (
                                         <p className="text-sm text-red-600">
-                                            {errors.blood_group}
+                                            {formErrors.blood_type}
                                         </p>
                                     )}
                                 </div>
@@ -265,39 +425,42 @@ export default function PatientsEdit() {
                                     <Label htmlFor="allergies">Allergies</Label>
                                     <Textarea
                                         id="allergies"
-                                        value={data.allergies}
+                                        value={formData.allergies}
                                         onChange={(e) =>
-                                            setData('allergies', e.target.value)
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                allergies: e.target.value,
+                                            }))
                                         }
                                         placeholder="List any known allergies"
                                         rows={3}
                                     />
-                                    {errors.allergies && (
+                                    {formErrors.allergies && (
                                         <p className="text-sm text-red-600">
-                                            {errors.allergies}
+                                            {formErrors.allergies}
                                         </p>
                                     )}
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="chronic_conditions">
-                                        Chronic Conditions
+                                    <Label htmlFor="medical_history">
+                                        Medical History
                                     </Label>
                                     <Textarea
-                                        id="chronic_conditions"
-                                        value={data.chronic_conditions}
+                                        id="medical_history"
+                                        value={formData.medical_history}
                                         onChange={(e) =>
-                                            setData(
-                                                'chronic_conditions',
-                                                e.target.value,
-                                            )
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                medical_history: e.target.value,
+                                            }))
                                         }
-                                        placeholder="List any chronic conditions"
+                                        placeholder="List any chronic conditions or medical history"
                                         rows={3}
                                     />
-                                    {errors.chronic_conditions && (
+                                    {formErrors.medical_history && (
                                         <p className="text-sm text-red-600">
-                                            {errors.chronic_conditions}
+                                            {formErrors.medical_history}
                                         </p>
                                     )}
                                 </div>
@@ -316,16 +479,19 @@ export default function PatientsEdit() {
                                     <Label htmlFor="address">Address</Label>
                                     <Textarea
                                         id="address"
-                                        value={data.address}
+                                        value={formData.address}
                                         onChange={(e) =>
-                                            setData('address', e.target.value)
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                address: e.target.value,
+                                            }))
                                         }
                                         placeholder="Enter full address"
                                         rows={3}
                                     />
-                                    {errors.address && (
+                                    {formErrors.address && (
                                         <p className="text-sm text-red-600">
-                                            {errors.address}
+                                            {formErrors.address}
                                         </p>
                                     )}
                                 </div>
@@ -337,18 +503,23 @@ export default function PatientsEdit() {
                                         </Label>
                                         <Input
                                             id="emergency_contact_name"
-                                            value={data.emergency_contact_name}
+                                            value={
+                                                formData.emergency_contact_name
+                                            }
                                             onChange={(e) =>
-                                                setData(
-                                                    'emergency_contact_name',
-                                                    e.target.value,
-                                                )
+                                                setFormData((prev) => ({
+                                                    ...prev,
+                                                    emergency_contact_name:
+                                                        e.target.value,
+                                                }))
                                             }
                                             placeholder="Enter emergency contact name"
                                         />
-                                        {errors.emergency_contact_name && (
+                                        {formErrors.emergency_contact_name && (
                                             <p className="text-sm text-red-600">
-                                                {errors.emergency_contact_name}
+                                                {
+                                                    formErrors.emergency_contact_name
+                                                }
                                             </p>
                                         )}
                                     </div>
@@ -359,18 +530,23 @@ export default function PatientsEdit() {
                                         </Label>
                                         <Input
                                             id="emergency_contact_phone"
-                                            value={data.emergency_contact_phone}
+                                            value={
+                                                formData.emergency_contact_phone
+                                            }
                                             onChange={(e) =>
-                                                setData(
-                                                    'emergency_contact_phone',
-                                                    e.target.value,
-                                                )
+                                                setFormData((prev) => ({
+                                                    ...prev,
+                                                    emergency_contact_phone:
+                                                        e.target.value,
+                                                }))
                                             }
                                             placeholder="Enter emergency contact phone"
                                         />
-                                        {errors.emergency_contact_phone && (
+                                        {formErrors.emergency_contact_phone && (
                                             <p className="text-sm text-red-600">
-                                                {errors.emergency_contact_phone}
+                                                {
+                                                    formErrors.emergency_contact_phone
+                                                }
                                             </p>
                                         )}
                                     </div>

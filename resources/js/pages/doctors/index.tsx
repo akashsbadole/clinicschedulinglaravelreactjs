@@ -16,9 +16,11 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import apiService from '@/lib/api';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { Edit, Eye, Plus, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -27,20 +29,44 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+interface Doctor {
+    id: number;
+    user: {
+        name: string;
+        email: string;
+    };
+    phone: string;
+    specialization: string;
+    license_number: string;
+    status: string;
+}
+
 export default function DoctorsIndex() {
-    // Mock data - in real app, this would come from props
-    const doctors = [
-        {
-            id: 1,
-            name: 'Dr. Sarah Johnson',
-            email: 'sarah.johnson@example.com',
-            phone: '+1234567890',
-            specialization: 'Cardiology',
-            license_number: 'MD123456',
-            status: 'Active',
-        },
-        // Add more mock doctors
-    ];
+    const [doctors, setDoctors] = useState<Doctor[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchDoctors = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = (await apiService.get('/doctors')) as {
+                success: boolean;
+                data: Doctor[];
+            };
+            setDoctors(response.data || []);
+        } catch (err) {
+            setError(
+                err instanceof Error ? err.message : 'Failed to load doctors',
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchDoctors();
+    }, []);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -98,9 +124,9 @@ export default function DoctorsIndex() {
                                 {doctors.map((doctor) => (
                                     <TableRow key={doctor.id}>
                                         <TableCell className="font-medium">
-                                            {doctor.name}
+                                            {doctor.user.name}
                                         </TableCell>
-                                        <TableCell>{doctor.email}</TableCell>
+                                        <TableCell>{doctor.user.email}</TableCell>
                                         <TableCell>{doctor.phone}</TableCell>
                                         <TableCell>
                                             {doctor.specialization}

@@ -22,85 +22,84 @@ import {
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Dashboard',
-        href: dashboard().url,
+        href: dashboard.url(),
     },
 ];
 
-export default function Dashboard() {
-    const stats = [
+interface DashboardStats {
+    total_patients: number;
+    total_doctors: number;
+    total_appointments_this_month: number;
+    total_revenue_this_month: number;
+    pending_bills: number;
+    today_appointments: number;
+}
+
+interface Appointment {
+    id: number;
+    appointment_number: string;
+    patient: {
+        user: {
+            name: string;
+        };
+    };
+    doctor: {
+        user: {
+            name: string;
+        };
+    };
+    appointment_date: string;
+    start_time: string;
+    status: string;
+}
+
+interface Notification {
+    id: number;
+    title: string;
+    message: string;
+    type: string;
+    created_at: string;
+}
+
+interface DashboardProps {
+    stats: DashboardStats;
+    recentAppointments: Appointment[];
+    notifications: Notification[];
+}
+
+export default function Dashboard({ stats, recentAppointments, notifications }: DashboardProps) {
+    const statsCards = [
         {
             title: 'Total Patients',
-            value: '1,234',
-            change: '+12%',
+            value: stats.total_patients.toString(),
+            change: '+12%', // This would need to be calculated from previous period
             icon: Users,
             color: 'text-blue-600',
             href: '/patients',
         },
         {
             title: 'Active Doctors',
-            value: '12',
-            change: '+2',
+            value: stats.total_doctors.toString(),
+            change: '+2', // This would need to be calculated
             icon: Stethoscope,
             color: 'text-green-600',
             href: '/doctors',
         },
         {
             title: "Today's Appointments",
-            value: '24',
-            change: '+8%',
+            value: stats.today_appointments.toString(),
+            change: '+8%', // This would need to be calculated
             icon: Calendar,
             color: 'text-orange-600',
             href: '/appointments',
         },
         {
             title: 'Monthly Revenue',
-            value: '$12,450',
-            change: '+15%',
+            value: `${stats.total_revenue_this_month.toFixed(2)}`,
+            change: '+15%', // This would need to be calculated
             icon: TrendingUp,
             color: 'text-purple-600',
             href: '/billing',
-        },
-    ];
-
-    const recentAppointments = [
-        {
-            id: 1,
-            patient: 'John Doe',
-            doctor: 'Dr. Sarah Johnson',
-            time: '10:00 AM',
-            status: 'Confirmed',
-        },
-        {
-            id: 2,
-            patient: 'Jane Smith',
-            doctor: 'Dr. Michael Brown',
-            time: '11:30 AM',
-            status: 'In Progress',
-        },
-        {
-            id: 3,
-            patient: 'Bob Wilson',
-            doctor: 'Dr. Emily Davis',
-            time: '2:00 PM',
-            status: 'Waiting',
-        },
-    ];
-
-    const alerts = [
-        {
-            id: 1,
-            message: 'Appointment reminder for John Doe at 10:00 AM',
-            type: 'info',
-        },
-        {
-            id: 2,
-            message: 'Payment overdue for invoice #1234',
-            type: 'warning',
-        },
-        {
-            id: 3,
-            message: 'New patient registration pending approval',
-            type: 'success',
         },
     ];
 
@@ -118,7 +117,7 @@ export default function Dashboard() {
 
                 {/* Stats Grid */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    {stats.map((stat) => (
+                    {statsCards.map((stat) => (
                         <Card
                             key={stat.title}
                             className="transition-shadow hover:shadow-md"
@@ -165,35 +164,55 @@ export default function Dashboard() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {recentAppointments.map((appointment) => (
-                                    <div
-                                        key={appointment.id}
-                                        className="flex items-center justify-between"
-                                    >
-                                        <div>
-                                            <p className="font-medium">
-                                                {appointment.patient}
-                                            </p>
-                                            <p className="text-sm text-muted-foreground">
-                                                {appointment.doctor} •{' '}
-                                                {appointment.time}
-                                            </p>
-                                        </div>
-                                        <span
-                                            className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                                                appointment.status ===
-                                                'Confirmed'
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : appointment.status ===
-                                                        'In Progress'
-                                                      ? 'bg-blue-100 text-blue-800'
-                                                      : 'bg-yellow-100 text-yellow-800'
-                                            }`}
-                                        >
-                                            {appointment.status}
-                                        </span>
-                                    </div>
-                                ))}
+                                {recentAppointments.length > 0 ? (
+                                    recentAppointments.map(
+                                        (appointment: Appointment) => (
+                                            <div
+                                                key={appointment.id}
+                                                className="flex items-center justify-between"
+                                            >
+                                                <div>
+                                                    <p className="font-medium">
+                                                        {
+                                                            appointment.patient
+                                                                .user.name
+                                                        }
+                                                    </p>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {
+                                                            appointment.doctor
+                                                                .user.name
+                                                        }{' '}
+                                                        •{' '}
+                                                        {appointment.start_time}
+                                                    </p>
+                                                </div>
+                                                <span
+                                                    className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${appointment.status ===
+                                                        'confirmed'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : appointment.status ===
+                                                            'in_progress'
+                                                            ? 'bg-blue-100 text-blue-800'
+                                                            : appointment.status ===
+                                                                'waiting'
+                                                                ? 'bg-yellow-100 text-yellow-800'
+                                                                : 'bg-gray-100 text-gray-800'
+                                                        }`}
+                                                >
+                                                    {appointment.status.replace(
+                                                        '_',
+                                                        ' ',
+                                                    )}
+                                                </span>
+                                            </div>
+                                        ),
+                                    )
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        No appointments today
+                                    </p>
+                                )}
                             </div>
                             <Button
                                 variant="outline"
@@ -217,25 +236,31 @@ export default function Dashboard() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {alerts.map((alert) => (
-                                    <div
-                                        key={alert.id}
-                                        className="flex items-start space-x-2"
-                                    >
-                                        <AlertCircle
-                                            className={`mt-0.5 h-4 w-4 ${
-                                                alert.type === 'warning'
+                                {notifications.length > 0 ? (
+                                    notifications.map((notification: Notification) => (
+                                        <div
+                                            key={notification.id}
+                                            className="flex items-start space-x-2"
+                                        >
+                                            <AlertCircle
+                                                className={`mt-0.5 h-4 w-4 ${notification.type === 'warning'
                                                     ? 'text-yellow-600'
-                                                    : alert.type === 'success'
-                                                      ? 'text-green-600'
-                                                      : 'text-blue-600'
-                                            }`}
-                                        />
-                                        <p className="text-sm">
-                                            {alert.message}
-                                        </p>
-                                    </div>
-                                ))}
+                                                    : notification.type ===
+                                                        'success'
+                                                        ? 'text-green-600'
+                                                        : 'text-blue-600'
+                                                    }`}
+                                            />
+                                            <p className="text-sm">
+                                                {notification.message}
+                                            </p>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        No alerts at this time
+                                    </p>
+                                )}
                             </div>
                             <Button
                                 variant="outline"

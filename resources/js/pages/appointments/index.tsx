@@ -17,9 +17,11 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import apiService from '@/lib/api';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { Calendar, Edit, Eye, Plus, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -28,20 +30,52 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+interface Appointment {
+    id: number;
+    patient: {
+        user: {
+            name: string;
+        };
+    };
+    doctor: {
+        user: {
+            name: string;
+        };
+    };
+    appointment_date: string;
+    appointment_time: string;
+    type: string;
+    status: string;
+}
+
 export default function AppointmentsIndex() {
-    // Mock data
-    const appointments = [
-        {
-            id: 1,
-            patient_name: 'John Doe',
-            doctor_name: 'Dr. Sarah Johnson',
-            date: '2024-01-15',
-            time: '10:00 AM',
-            type: 'Consultation',
-            status: 'Confirmed',
-        },
-        // Add more mock appointments
-    ];
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchAppointments = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = (await apiService.get('/appointments')) as {
+                success: boolean;
+                data: Appointment[];
+            };
+            setAppointments(response.data || []);
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : 'Failed to load appointments',
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAppointments();
+    }, []);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -102,18 +136,20 @@ export default function AppointmentsIndex() {
                                 {appointments.map((appointment) => (
                                     <TableRow key={appointment.id}>
                                         <TableCell className="font-medium">
-                                            {appointment.patient_name}
+                                            {appointment.patient?.user?.name ||
+                                                'N/A'}
                                         </TableCell>
                                         <TableCell>
-                                            {appointment.doctor_name}
+                                            {appointment.doctor?.user?.name ||
+                                                'N/A'}
                                         </TableCell>
                                         <TableCell>
                                             <div>
                                                 <div className="font-medium">
-                                                    {appointment.date}
+                                                    {appointment.appointment_date}
                                                 </div>
                                                 <div className="text-sm text-muted-foreground">
-                                                    {appointment.time}
+                                                    {appointment.appointment_time}
                                                 </div>
                                             </div>
                                         </TableCell>

@@ -76,7 +76,9 @@ class CleanupOldData extends Command
         $retentionDays = $this->retentionPolicies['audit_logs'];
         $cutoffDate = now()->subDays($retentionDays);
 
+        $this->info("Debug: Retention days: {$retentionDays}, Cutoff date: {$cutoffDate}");
         $count = AuditLog::where('created_at', '<', $cutoffDate)->count();
+        $this->info("Debug: Found {$count} audit logs to delete");
 
         if ($dryRun) {
             $this->info("Would delete {$count} audit logs older than {$retentionDays} days");

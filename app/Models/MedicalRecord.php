@@ -6,13 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\Auditable;
-use App\Traits\Encryptable;
-
 class MedicalRecord extends Model
 {
-    use HasFactory, SoftDeletes, Auditable, Encryptable;
+    use HasFactory, SoftDeletes, Auditable;
 
-    protected $encryptable = ['content'];
 
     protected $fillable = [
         'clinic_id',

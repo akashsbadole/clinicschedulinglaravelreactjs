@@ -22,7 +22,7 @@ class DoctorController extends Controller
     public function index()
     {
         $user = Auth::user();
-        
+
         // Admin can see all doctors, staff can see doctors from their clinic
         if ($user->isAdmin()) {
             $doctors = Doctor::with(['user', 'clinic', 'schedules'])->get();
@@ -31,7 +31,7 @@ class DoctorController extends Controller
                 ->where('clinic_id', $user->clinic_id)
                 ->get();
         }
-        
+
         return response()->json([
             'success' => true,
             'data' => $doctors
@@ -47,23 +47,23 @@ class DoctorController extends Controller
         if (!$clinic) {
             throw new \Exception('Clinic not found');
         }
-        
+
         // Generate a unique doctor ID based on clinic prefix
         $prefix = strtoupper(substr($clinic->name, 0, 3)) . '-DOC-';
-        
+
         // Find the highest existing doctor ID for this clinic
         $lastDoctor = Doctor::where('clinic_id', $clinicId)
             ->where('doctor_id', 'LIKE', $prefix . '%')
             ->orderBy('doctor_id', 'desc')
             ->first();
-        
+
         if ($lastDoctor) {
             $lastNumber = intval(substr($lastDoctor->doctor_id, -4));
             $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
         } else {
             $newNumber = '0001';
         }
-        
+
         return $prefix . $newNumber;
     }
 
@@ -73,9 +73,9 @@ class DoctorController extends Controller
     public function store(DoctorStoreRequest $request)
     {
         $validatedData = $request->validated();
-        
+
         $user = Auth::user();
-        
+
         // Check if user has permission to create doctors for this clinic
         if (!$user->isAdmin() && $request->clinic_id != $user->clinic_id) {
             return response()->json([
@@ -144,7 +144,7 @@ class DoctorController extends Controller
         }
 
         $user = Auth::user();
-        
+
         // Check if user has access to this doctor
         if (!$user->isAdmin() && $doctor->clinic_id != $user->clinic_id) {
             return response()->json([
@@ -159,12 +159,9 @@ class DoctorController extends Controller
         ]);
     }
 
-    /**
-     * Update a doctor
-     */
     public function update(DoctorUpdateRequest $request, $id)
     {
-        $doctor = Doctor::find($id);
+        $doctor = Doctor::with('user')->find($id);
 
         if (!$doctor) {
             return response()->json([
@@ -174,7 +171,7 @@ class DoctorController extends Controller
         }
 
         $user = Auth::user();
-        
+
         // Check if user has permission to update this doctor
         if (!$user->isAdmin() && !$user->isDoctor()) {
             return response()->json([
@@ -193,7 +190,29 @@ class DoctorController extends Controller
         $validatedData = $request->validated();
 
         try {
-            $doctor->update($request->all());
+            // Update User fields if present
+            $userFields = ['first_name', 'last_name', 'email', 'phone', 'address'];
+            $userData = [];
+
+            // Handle name splitting/joining
+            if (isset($validatedData['first_name']) || isset($validatedData['last_name'])) {
+                $firstName = $validatedData['first_name'] ?? explode(' ', $doctor->user->name)[0];
+                $lastName = $validatedData['last_name'] ?? (count(explode(' ', $doctor->user->name)) > 1 ? explode(' ', $doctor->user->name)[1] : '');
+                $userData['name'] = trim($firstName . ' ' . $lastName);
+            }
+
+            foreach ($userFields as $field) {
+                if (isset($validatedData[$field]) && $field !== 'first_name' && $field !== 'last_name') {
+                    $userData[$field] = $validatedData[$field];
+                }
+            }
+
+            if (!empty($userData)) {
+                $doctor->user->update($userData);
+            }
+
+            // Update Doctor fields
+            $doctor->update($validatedData);
 
             return response()->json([
                 'success' => true,
@@ -225,7 +244,7 @@ class DoctorController extends Controller
         }
 
         $user = Auth::user();
-        
+
         // Only admins can delete doctors
         if (!$user->isAdmin()) {
             return response()->json([
@@ -267,7 +286,7 @@ class DoctorController extends Controller
         }
 
         $user = Auth::user();
-        
+
         // Check if user has access to this doctor
         if (!$user->isAdmin() && $doctor->clinic_id != $user->clinic_id) {
             return response()->json([
@@ -299,7 +318,7 @@ class DoctorController extends Controller
         }
 
         $user = Auth::user();
-        
+
         // Check if user has access to this doctor
         if (!$user->isAdmin() && $doctor->clinic_id != $user->clinic_id) {
             return response()->json([
@@ -331,7 +350,7 @@ class DoctorController extends Controller
         }
 
         $user = Auth::user();
-        
+
         // Check if user has permission to update this doctor's schedule
         if (!$user->isAdmin() && !$user->isDoctor()) {
             return response()->json([
@@ -410,7 +429,7 @@ class DoctorController extends Controller
         }
 
         $user = Auth::user();
-        
+
         // Check if user has access to this doctor
         if (!$user->isAdmin() && $doctor->clinic_id != $user->clinic_id) {
             return response()->json([

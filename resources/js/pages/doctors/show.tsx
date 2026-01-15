@@ -6,37 +6,91 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Calendar, Edit, Users } from 'lucide-react';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Doctors',
-        href: '/doctors',
-    },
-    {
-        title: 'View',
-        href: `/doctors/${usePage().props.id}`,
-    },
-];
+import apiService from '@/lib/api';
+import { useEffect, useState } from 'react';
+
+interface Doctor {
+    id: number;
+    user: {
+        name: string;
+        email: string;
+        phone: string;
+        address: string;
+    };
+    specialization: string;
+    license_number: string;
+    experience_years: number;
+    consultation_fee: number;
+    bio: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+}
 
 export default function DoctorsShow() {
-    // Mock data
-    const doctor = {
-        id: 1,
-        name: 'Dr. Sarah Johnson',
-        email: 'sarah.johnson@example.com',
-        phone: '+1234567890',
-        specialization: 'Cardiology',
-        license_number: 'MD123456',
-        experience_years: 15,
-        consultation_fee: 150.0,
-        address: '123 Medical Center, City, State 12345',
-        bio: 'Experienced cardiologist with over 15 years of practice...',
-        status: 'Active',
-        created_at: '2020-01-01',
-    };
+    const { id } = usePage().props as unknown as { id: string };
+    const [doctor, setDoctor] = useState<Doctor | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchDoctor = async () => {
+            try {
+                setLoading(true);
+                const response = (await apiService.get(`/doctors/${id}`)) as {
+                    success: boolean;
+                    data: Doctor;
+                };
+                setDoctor(response.data);
+            } catch (err: any) {
+                setError(err.message || 'Failed to fetch doctor data');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (id) {
+            fetchDoctor();
+        }
+    }, [id]);
+
+    if (loading) {
+        return (
+            <AppLayout breadcrumbs={[]}>
+                <div className="flex h-64 items-center justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                </div>
+            </AppLayout>
+        );
+    }
+
+    if (error || !doctor) {
+        return (
+            <AppLayout breadcrumbs={[]}>
+                <div className="flex flex-col items-center justify-center gap-4 p-12 text-center text-red-500">
+                    <p>{error || 'Doctor not found'}</p>
+                    <Button asChild variant="outline">
+                        <Link href="/doctors">Back to Doctors</Link>
+                    </Button>
+                </div>
+            </AppLayout>
+        );
+    }
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: 'Doctors',
+            href: '/doctors',
+        },
+        {
+            title: 'View',
+            href: `/doctors/${doctor.id}`,
+        },
+    ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Doctor: ${doctor.name}`} />
+            <Head title={`Doctor: ${doctor.user?.name}`} />
 
             <div className="flex flex-col gap-6 p-6">
                 <div className="flex items-center justify-between">
@@ -49,7 +103,7 @@ export default function DoctorsShow() {
                         </Button>
                         <div>
                             <h1 className="text-2xl font-bold">
-                                {doctor.name}
+                                {doctor.user?.name}
                             </h1>
                             <p className="text-muted-foreground">
                                 Doctor ID: #{doctor.id}
@@ -131,19 +185,25 @@ export default function DoctorsShow() {
                                     <label className="text-sm font-medium text-muted-foreground">
                                         Email
                                     </label>
-                                    <p className="text-sm">{doctor.email}</p>
+                                    <p className="text-sm">
+                                        {doctor.user?.email}
+                                    </p>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">
                                         Phone
                                     </label>
-                                    <p className="text-sm">{doctor.phone}</p>
+                                    <p className="text-sm">
+                                        {doctor.user?.phone}
+                                    </p>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">
                                         Address
                                     </label>
-                                    <p className="text-sm">{doctor.address}</p>
+                                    <p className="text-sm">
+                                        {doctor.user?.address}
+                                    </p>
                                 </div>
                             </CardContent>
                         </Card>

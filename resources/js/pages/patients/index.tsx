@@ -16,9 +16,11 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import apiService from '@/lib/api';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { Edit, Eye, Plus, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -27,20 +29,44 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+interface Patient {
+    id: number;
+    user: {
+        name: string;
+        email: string;
+    };
+    phone: string;
+    date_of_birth: string;
+    blood_group: string;
+    status: string;
+}
+
 export default function PatientsIndex() {
-    // Mock data - in real app, this would come from props
-    const patients = [
-        {
-            id: 1,
-            name: 'John Doe',
-            email: 'john@example.com',
-            phone: '+1234567890',
-            date_of_birth: '1990-01-01',
-            blood_group: 'A+',
-            status: 'Active',
-        },
-        // Add more mock patients
-    ];
+    const [patients, setPatients] = useState<Patient[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchPatients = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = (await apiService.get('/patients')) as {
+                success: boolean;
+                data: Patient[];
+            };
+            setPatients(response.data || []);
+        } catch (err) {
+            setError(
+                err instanceof Error ? err.message : 'Failed to load patients',
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchPatients();
+    }, []);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -94,49 +120,68 @@ export default function PatientsIndex() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {patients.map((patient) => (
-                                    <TableRow key={patient.id}>
-                                        <TableCell className="font-medium">
-                                            {patient.name}
-                                        </TableCell>
-                                        <TableCell>{patient.email}</TableCell>
-                                        <TableCell>{patient.phone}</TableCell>
-                                        <TableCell>
-                                            {patient.blood_group}
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-                                                {patient.status}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end space-x-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={`/patients/${patient.id}`}
+                                {patients.length > 0 ? (
+                                    patients.map((patient: Patient) => (
+                                        <TableRow key={patient.id}>
+                                            <TableCell className="font-medium">
+                                                {patient.user.name}
+                                            </TableCell>
+                                            <TableCell>
+                                                {patient.user.email}
+                                            </TableCell>
+                                            <TableCell>
+                                                {patient.phone}
+                                            </TableCell>
+                                            <TableCell>
+                                                {patient.blood_group}
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+                                                    {patient.status}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end space-x-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        asChild
                                                     >
-                                                        <Eye className="h-4 w-4" />
-                                                    </Link>
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={`/patients/${patient.id}/edit`}
+                                                        <Link
+                                                            href={`/patients/${patient.id}`}
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Link>
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        asChild
                                                     >
-                                                        <Edit className="h-4 w-4" />
-                                                    </Link>
-                                                </Button>
-                                            </div>
+                                                        <Link
+                                                            href={`/patients/${patient.id}/edit`}
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </Link>
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={6}
+                                            className="py-8 text-center"
+                                        >
+                                            {loading
+                                                ? 'Loading patients...'
+                                                : error
+                                                  ? `Error: ${error}`
+                                                  : 'No patients found'}
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>

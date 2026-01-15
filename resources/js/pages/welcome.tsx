@@ -1,6 +1,6 @@
 import { dashboard, login, register } from '@/routes';
 import { type SharedData } from '@/types';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
 export default function Welcome({
     canRegister = true,
@@ -8,6 +8,21 @@ export default function Welcome({
     canRegister?: boolean;
 }) {
     const { auth } = usePage<SharedData>().props;
+
+    const enquiryForm = useForm({
+        name: '',
+        email: '',
+        phone: '',
+        message: '',
+    });
+
+    const contactForm = useForm({
+        name: '',
+        email: '',
+        phone: '',
+        subject: '',
+        message: '',
+    });
 
     return (
         <>
@@ -19,7 +34,7 @@ export default function Welcome({
                 />
             </Head>
             <div className="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]">
-                <header className="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl">
+                <header className="mb-6 w-full max-w-83.75 text-sm not-has-[nav]:hidden lg:max-w-4xl">
                     <nav className="flex items-center justify-end gap-4">
                         {auth.user ? (
                             <Link
@@ -250,8 +265,320 @@ export default function Welcome({
                                 </div>
                             </div>
                         </div>
+
+                        {/* Enquiry Section */}
+                        <div className="mb-16 rounded-lg bg-white p-8 shadow-lg dark:bg-[#161615] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]">
+                            <h2 className="mb-6 text-center text-2xl font-semibold text-[#1b1b18] dark:text-[#EDEDEC]">
+                                📞 Enquiry Form
+                            </h2>
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    enquiryForm.post('/enquiries');
+                                }}
+                                className="grid gap-4 md:grid-cols-2"
+                            >
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">
+                                        Name *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={enquiryForm.data.name}
+                                        onChange={(e) =>
+                                            enquiryForm.setData(
+                                                'name',
+                                                e.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded border border-[#19140035] px-3 py-2 dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]"
+                                        required
+                                    />
+                                    {enquiryForm.errors.name && (
+                                        <p className="text-sm text-red-600">
+                                            {enquiryForm.errors.name}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">
+                                        Email *
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={enquiryForm.data.email}
+                                        onChange={(e) =>
+                                            enquiryForm.setData(
+                                                'email',
+                                                e.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded border border-[#19140035] px-3 py-2 dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]"
+                                        required
+                                    />
+                                    {enquiryForm.errors.email && (
+                                        <p className="text-sm text-red-600">
+                                            {enquiryForm.errors.email}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">
+                                        Phone
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        value={enquiryForm.data.phone}
+                                        onChange={(e) =>
+                                            enquiryForm.setData(
+                                                'phone',
+                                                e.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded border border-[#19140035] px-3 py-2 dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]"
+                                    />
+                                    {enquiryForm.errors.phone && (
+                                        <p className="text-sm text-red-600">
+                                            {enquiryForm.errors.phone}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-2 md:col-span-2">
+                                    <label className="block text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">
+                                        Message *
+                                    </label>
+                                    <textarea
+                                        value={enquiryForm.data.message}
+                                        onChange={(e) =>
+                                            enquiryForm.setData(
+                                                'message',
+                                                e.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded border border-[#19140035] px-3 py-2 dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]"
+                                        rows={4}
+                                        required
+                                    />
+                                    {enquiryForm.errors.message && (
+                                        <p className="text-sm text-red-600">
+                                            {enquiryForm.errors.message}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="flex justify-end md:col-span-2">
+                                    <button
+                                        type="submit"
+                                        disabled={enquiryForm.processing}
+                                        className="rounded border border-[#19140035] px-6 py-2 font-medium text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
+                                    >
+                                        {enquiryForm.processing
+                                            ? 'Submitting...'
+                                            : 'Submit Enquiry'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        {/* Contact Section */}
+                        <div className="mb-16 rounded-lg bg-white p-8 shadow-lg dark:bg-[#161615] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]">
+                            <h2 className="mb-6 text-center text-2xl font-semibold text-[#1b1b18] dark:text-[#EDEDEC]">
+                                📧 Contact Us
+                            </h2>
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    contactForm.post('/contacts');
+                                }}
+                                className="grid gap-4 md:grid-cols-2"
+                            >
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">
+                                        Name *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={contactForm.data.name}
+                                        onChange={(e) =>
+                                            contactForm.setData(
+                                                'name',
+                                                e.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded border border-[#19140035] px-3 py-2 dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]"
+                                        required
+                                    />
+                                    {contactForm.errors.name && (
+                                        <p className="text-sm text-red-600">
+                                            {contactForm.errors.name}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">
+                                        Email *
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={contactForm.data.email}
+                                        onChange={(e) =>
+                                            contactForm.setData(
+                                                'email',
+                                                e.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded border border-[#19140035] px-3 py-2 dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]"
+                                        required
+                                    />
+                                    {contactForm.errors.email && (
+                                        <p className="text-sm text-red-600">
+                                            {contactForm.errors.email}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">
+                                        Phone
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        value={contactForm.data.phone}
+                                        onChange={(e) =>
+                                            contactForm.setData(
+                                                'phone',
+                                                e.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded border border-[#19140035] px-3 py-2 dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]"
+                                    />
+                                    {contactForm.errors.phone && (
+                                        <p className="text-sm text-red-600">
+                                            {contactForm.errors.phone}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">
+                                        Subject *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={contactForm.data.subject}
+                                        onChange={(e) =>
+                                            contactForm.setData(
+                                                'subject',
+                                                e.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded border border-[#19140035] px-3 py-2 dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]"
+                                        required
+                                    />
+                                    {contactForm.errors.subject && (
+                                        <p className="text-sm text-red-600">
+                                            {contactForm.errors.subject}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="space-y-2 md:col-span-2">
+                                    <label className="block text-sm font-medium text-[#1b1b18] dark:text-[#EDEDEC]">
+                                        Message *
+                                    </label>
+                                    <textarea
+                                        value={contactForm.data.message}
+                                        onChange={(e) =>
+                                            contactForm.setData(
+                                                'message',
+                                                e.target.value,
+                                            )
+                                        }
+                                        className="w-full rounded border border-[#19140035] px-3 py-2 dark:border-[#3E3E3A] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]"
+                                        rows={4}
+                                        required
+                                    />
+                                    {contactForm.errors.message && (
+                                        <p className="text-sm text-red-600">
+                                            {contactForm.errors.message}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="flex justify-end md:col-span-2">
+                                    <button
+                                        type="submit"
+                                        disabled={contactForm.processing}
+                                        className="rounded border border-[#19140035] px-6 py-2 font-medium text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
+                                    >
+                                        {contactForm.processing
+                                            ? 'Submitting...'
+                                            : 'Send Message'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
+
+                {/* Footer */}
+                <footer className="w-full bg-[#1b1b18] py-8 text-[#EDEDEC] dark:bg-[#0a0a0a]">
+                    <div className="mx-auto max-w-6xl px-6 lg:px-8">
+                        <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+                            <div>
+                                <h3 className="mb-4 text-lg font-semibold">
+                                    Clinic Billing System
+                                </h3>
+                                <p className="text-sm text-[#A1A09A]">
+                                    Comprehensive medical clinic management
+                                    solution with advanced billing and
+                                    scheduling features.
+                                </p>
+                            </div>
+                            <div>
+                                <h3 className="mb-4 text-lg font-semibold">
+                                    Quick Links
+                                </h3>
+                                <ul className="space-y-2 text-sm">
+                                    <li>
+                                        <Link
+                                            href={login()}
+                                            className="hover:text-[#706f6c]"
+                                        >
+                                            Login
+                                        </Link>
+                                    </li>
+                                    {canRegister && (
+                                        <li>
+                                            <Link
+                                                href={register()}
+                                                className="hover:text-[#706f6c]"
+                                            >
+                                                Register
+                                            </Link>
+                                        </li>
+                                    )}
+                                    <li>
+                                        <a
+                                            href="#features"
+                                            className="hover:text-[#706f6c]"
+                                        >
+                                            Features
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h3 className="mb-4 text-lg font-semibold">
+                                    Contact
+                                </h3>
+                                <p className="text-sm text-[#A1A09A]">
+                                    Email: info@clinicbilling.com
+                                    <br />
+                                    Phone: +1 (555) 123-4567
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-8 border-t border-[#3E3E3A] pt-4 text-center text-sm text-[#A1A09A]">
+                            © 2026 Clinic Billing System. All rights reserved.
+                        </div>
+                    </div>
+                </footer>
                 <div className="hidden h-14.5 lg:block"></div>
             </div>
         </>

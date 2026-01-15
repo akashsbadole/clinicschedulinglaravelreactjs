@@ -17,56 +17,143 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import apiService from '@/lib/api';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Save } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Doctors',
-        href: '/doctors',
-    },
-    {
-        title: 'Edit',
-        href: `/doctors/${usePage().props.id}/edit`,
-    },
-];
+interface Doctor {
+    id: number;
+    user: {
+        name: string;
+        email: string;
+        phone: string;
+        address: string;
+    };
+    specialization: string;
+    license_number: string;
+    years_of_experience: number;
+    consultation_fee: number;
+    bio: string;
+}
 
 export default function DoctorsEdit() {
-    // Mock data
-    const doctor = {
-        id: 1,
-        name: 'Dr. Sarah Johnson',
-        email: 'sarah.johnson@example.com',
-        phone: '+1234567890',
-        specialization: 'cardiology',
-        license_number: 'MD123456',
-        experience_years: 15,
-        consultation_fee: 150.0,
-        address: '123 Medical Center, City, State 12345',
-        bio: 'Experienced cardiologist with over 15 years of practice...',
-    };
+    const { id } = usePage().props as unknown as { id: string };
+    const [doctor, setDoctor] = useState<Doctor | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [processing, setProcessing] = useState(false);
+    const [formErrors, setFormErrors] = useState<any>({});
 
-    const { data, setData, put, processing, errors } = useForm({
-        name: doctor.name,
-        email: doctor.email,
-        phone: doctor.phone,
-        specialization: doctor.specialization,
-        license_number: doctor.license_number,
-        experience_years: doctor.experience_years.toString(),
-        consultation_fee: doctor.consultation_fee.toString(),
-        address: doctor.address,
-        bio: doctor.bio,
+    const [formData, setFormData] = useState({
+        first_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+        specialization: '',
+        license_number: '',
+        years_of_experience: '',
+        consultation_fee: '',
+        address: '',
+        bio: '',
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    useEffect(() => {
+        const fetchDoctor = async () => {
+            try {
+                setLoading(true);
+                const response = (await apiService.get(`/doctors/${id}`)) as {
+                    success: boolean;
+                    data: Doctor;
+                };
+                setDoctor(response.data);
+                const nameParts = response.data.user.name.split(' ');
+                setFormData({
+                    first_name: nameParts[0] || '',
+                    last_name: nameParts.slice(1).join(' ') || '',
+                    email: response.data.user.email,
+                    phone: response.data.user.phone,
+                    specialization: response.data.specialization,
+                    license_number: response.data.license_number,
+                    years_of_experience:
+                        response.data.years_of_experience?.toString() || '',
+                    consultation_fee:
+                        response.data.consultation_fee?.toString() || '',
+                    address: response.data.user.address || '',
+                    bio: response.data.bio || '',
+                });
+            } catch (err: any) {
+                setError(err.message || 'Failed to load doctor data');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (id) {
+            fetchDoctor();
+        }
+    }, [id]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        put(`/api/doctors/${doctor.id}`);
+        try {
+            setProcessing(true);
+            setFormErrors({});
+            await apiService.put(`/doctors/${id}`, formData);
+            window.location.href = `/doctors/${id}`;
+        } catch (err: any) {
+            if (err.response?.data?.errors) {
+                setFormErrors(err.response.data.errors);
+            } else {
+                setError(err.message || 'Failed to update doctor');
+            }
+        } finally {
+            setProcessing(false);
+        }
     };
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: 'Doctors',
+            href: '/doctors',
+        },
+        {
+            title: 'Edit',
+            href: `/doctors/${id}/edit`,
+        },
+    ];
+
+    if (loading) {
+        return (
+            <AppLayout breadcrumbs={breadcrumbs}>
+                <div className="flex h-64 items-center justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                </div>
+            </AppLayout>
+        );
+    }
+
+    if (error && !doctor) {
+        return (
+            <AppLayout breadcrumbs={breadcrumbs}>
+                <div className="flex flex-col items-center justify-center gap-4 p-12 text-center text-red-500">
+                    <p>{error}</p>
+                    <Button asChild variant="outline">
+                        <Link href="/doctors">Back to Doctors</Link>
+                    </Button>
+                </div>
+            </AppLayout>
+        );
+    }
+
+    if (!doctor) {
+        return null;
+    }
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Edit Doctor: ${doctor.name}`} />
+            <Head title={`Edit Doctor: ${doctor.user.name}`} />
 
             <div className="flex flex-col gap-6 p-6">
                 <div className="flex items-center gap-4">
@@ -95,19 +182,47 @@ export default function DoctorsEdit() {
                             </CardHeader>
                             <CardContent className="grid gap-4 md:grid-cols-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="name">Full Name *</Label>
+                                    <Label htmlFor="first_name">
+                                        First Name *
+                                    </Label>
                                     <Input
-                                        id="name"
-                                        value={data.name}
+                                        id="first_name"
+                                        value={formData.first_name}
                                         onChange={(e) =>
-                                            setData('name', e.target.value)
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                first_name: e.target.value,
+                                            }))
                                         }
-                                        placeholder="Enter full name"
+                                        placeholder="Enter first name"
                                         required
                                     />
-                                    {errors.name && (
+                                    {formErrors.first_name && (
                                         <p className="text-sm text-red-600">
-                                            {errors.name}
+                                            {formErrors.first_name}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="last_name">
+                                        Last Name *
+                                    </Label>
+                                    <Input
+                                        id="last_name"
+                                        value={formData.last_name}
+                                        onChange={(e) =>
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                last_name: e.target.value,
+                                            }))
+                                        }
+                                        placeholder="Enter last name"
+                                        required
+                                    />
+                                    {formErrors.last_name && (
+                                        <p className="text-sm text-red-600">
+                                            {formErrors.last_name}
                                         </p>
                                     )}
                                 </div>
@@ -117,16 +232,19 @@ export default function DoctorsEdit() {
                                     <Input
                                         id="email"
                                         type="email"
-                                        value={data.email}
+                                        value={formData.email}
                                         onChange={(e) =>
-                                            setData('email', e.target.value)
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                email: e.target.value,
+                                            }))
                                         }
                                         placeholder="Enter email address"
                                         required
                                     />
-                                    {errors.email && (
+                                    {formErrors.email && (
                                         <p className="text-sm text-red-600">
-                                            {errors.email}
+                                            {formErrors.email}
                                         </p>
                                     )}
                                 </div>
@@ -135,16 +253,19 @@ export default function DoctorsEdit() {
                                     <Label htmlFor="phone">Phone *</Label>
                                     <Input
                                         id="phone"
-                                        value={data.phone}
+                                        value={formData.phone}
                                         onChange={(e) =>
-                                            setData('phone', e.target.value)
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                phone: e.target.value,
+                                            }))
                                         }
                                         placeholder="Enter phone number"
                                         required
                                     />
-                                    {errors.phone && (
+                                    {formErrors.phone && (
                                         <p className="text-sm text-red-600">
-                                            {errors.phone}
+                                            {formErrors.phone}
                                         </p>
                                     )}
                                 </div>
@@ -154,9 +275,12 @@ export default function DoctorsEdit() {
                                         Specialization *
                                     </Label>
                                     <Select
-                                        value={data.specialization}
+                                        value={formData.specialization}
                                         onValueChange={(value) =>
-                                            setData('specialization', value)
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                specialization: value,
+                                            }))
                                         }
                                     >
                                         <SelectTrigger>
@@ -183,9 +307,9 @@ export default function DoctorsEdit() {
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    {errors.specialization && (
+                                    {formErrors.specialization && (
                                         <p className="text-sm text-red-600">
-                                            {errors.specialization}
+                                            {formErrors.specialization}
                                         </p>
                                     )}
                                 </div>
@@ -196,42 +320,43 @@ export default function DoctorsEdit() {
                                     </Label>
                                     <Input
                                         id="license_number"
-                                        value={data.license_number}
+                                        value={formData.license_number}
                                         onChange={(e) =>
-                                            setData(
-                                                'license_number',
-                                                e.target.value,
-                                            )
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                license_number: e.target.value,
+                                            }))
                                         }
                                         placeholder="Enter license number"
                                         required
                                     />
-                                    {errors.license_number && (
+                                    {formErrors.license_number && (
                                         <p className="text-sm text-red-600">
-                                            {errors.license_number}
+                                            {formErrors.license_number}
                                         </p>
                                     )}
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="experience_years">
+                                    <Label htmlFor="years_of_experience">
                                         Years of Experience
                                     </Label>
                                     <Input
-                                        id="experience_years"
+                                        id="years_of_experience"
                                         type="number"
-                                        value={data.experience_years}
+                                        value={formData.years_of_experience}
                                         onChange={(e) =>
-                                            setData(
-                                                'experience_years',
-                                                e.target.value,
-                                            )
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                years_of_experience:
+                                                    e.target.value,
+                                            }))
                                         }
                                         placeholder="Enter years of experience"
                                     />
-                                    {errors.experience_years && (
+                                    {formErrors.years_of_experience && (
                                         <p className="text-sm text-red-600">
-                                            {errors.experience_years}
+                                            {formErrors.years_of_experience}
                                         </p>
                                     )}
                                 </div>
@@ -244,18 +369,19 @@ export default function DoctorsEdit() {
                                         id="consultation_fee"
                                         type="number"
                                         step="0.01"
-                                        value={data.consultation_fee}
+                                        value={formData.consultation_fee}
                                         onChange={(e) =>
-                                            setData(
-                                                'consultation_fee',
-                                                e.target.value,
-                                            )
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                consultation_fee:
+                                                    e.target.value,
+                                            }))
                                         }
                                         placeholder="Enter consultation fee"
                                     />
-                                    {errors.consultation_fee && (
+                                    {formErrors.consultation_fee && (
                                         <p className="text-sm text-red-600">
-                                            {errors.consultation_fee}
+                                            {formErrors.consultation_fee}
                                         </p>
                                     )}
                                 </div>
@@ -274,16 +400,19 @@ export default function DoctorsEdit() {
                                     <Label htmlFor="address">Address</Label>
                                     <Textarea
                                         id="address"
-                                        value={data.address}
+                                        value={formData.address}
                                         onChange={(e) =>
-                                            setData('address', e.target.value)
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                address: e.target.value,
+                                            }))
                                         }
                                         placeholder="Enter full address"
                                         rows={3}
                                     />
-                                    {errors.address && (
+                                    {formErrors.address && (
                                         <p className="text-sm text-red-600">
-                                            {errors.address}
+                                            {formErrors.address}
                                         </p>
                                     )}
                                 </div>
@@ -292,16 +421,19 @@ export default function DoctorsEdit() {
                                     <Label htmlFor="bio">Biography</Label>
                                     <Textarea
                                         id="bio"
-                                        value={data.bio}
+                                        value={formData.bio}
                                         onChange={(e) =>
-                                            setData('bio', e.target.value)
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                bio: e.target.value,
+                                            }))
                                         }
                                         placeholder="Enter professional biography"
                                         rows={4}
                                     />
-                                    {errors.bio && (
+                                    {formErrors.bio && (
                                         <p className="text-sm text-red-600">
-                                            {errors.bio}
+                                            {formErrors.bio}
                                         </p>
                                     )}
                                 </div>

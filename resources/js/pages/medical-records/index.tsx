@@ -17,9 +17,11 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import apiService from '@/lib/api';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { Edit, Eye, Plus, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -28,18 +30,51 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+interface MedicalRecord {
+    id: number;
+    patient: {
+        user: {
+            name: string;
+        };
+    };
+    doctor: {
+        user: {
+            name: string;
+        };
+    };
+    type: string;
+    record_date: string;
+    description: string;
+}
+
 export default function MedicalRecordsIndex() {
-    // Mock data
-    const records = [
-        {
-            id: 1,
-            patient_name: 'John Doe',
-            doctor_name: 'Dr. Sarah Johnson',
-            type: 'Consultation Note',
-            date: '2024-01-15',
-            diagnosis: 'Hypertension',
-        },
-    ];
+    const [records, setRecords] = useState<MedicalRecord[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchRecords = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = (await apiService.get('/medical-records')) as {
+                success: boolean;
+                data: MedicalRecord[];
+            };
+            setRecords(response.data || []);
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : 'Failed to load medical records',
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchRecords();
+    }, []);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -96,19 +131,22 @@ export default function MedicalRecordsIndex() {
                                 {records.map((record) => (
                                     <TableRow key={record.id}>
                                         <TableCell className="font-medium">
-                                            {record.patient_name}
+                                            {record.patient?.user?.name ||
+                                                'N/A'}
                                         </TableCell>
                                         <TableCell>
-                                            {record.doctor_name}
+                                            {record.doctor?.user?.name || 'N/A'}
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant="outline">
                                                 {record.type}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell>{record.date}</TableCell>
                                         <TableCell>
-                                            {record.diagnosis}
+                                            {record.record_date}
+                                        </TableCell>
+                                        <TableCell>
+                                            {record.description}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end space-x-2">

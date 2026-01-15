@@ -12,6 +12,35 @@ class PatientStoreRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation()
+    {
+        if (!$this->has('clinic_id') && auth()->check()) {
+            $this->merge([
+                'clinic_id' => auth()->user()->clinic_id,
+            ]);
+        }
+
+        if ($this->has('name') && (!$this->has('first_name') || !$this->has('last_name'))) {
+            $parts = explode(' ', $this->name, 2);
+            $this->merge([
+                'first_name' => $parts[0] ?? '',
+                'last_name' => $parts[1] ?? '',
+            ]);
+        }
+
+        if ($this->has('blood_group')) {
+            $this->merge([
+                'blood_type' => $this->blood_group,
+            ]);
+        }
+
+        if ($this->has('chronic_conditions')) {
+            $this->merge([
+                'medical_history' => $this->chronic_conditions,
+            ]);
+        }
+    }
+
     public function rules()
     {
         return [

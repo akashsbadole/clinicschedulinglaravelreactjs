@@ -1,4 +1,3 @@
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -15,10 +14,8 @@ import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
     BarChart3,
-    BookOpen,
     Calendar,
     FileText,
-    Folder,
     LayoutGrid,
     Receipt,
     Settings,
@@ -71,6 +68,12 @@ const allNavItems: (NavItem & { roles: string[] })[] = [
         roles: ['admin', 'doctor', 'staff'],
     },
     {
+        title: 'Admin Dashboard',
+        href: '/admin/dashboard',
+        icon: BarChart3,
+        roles: ['admin'],
+    },
+    {
         title: 'Settings',
         href: '/settings/profile',
         icon: Settings,
@@ -78,18 +81,18 @@ const allNavItems: (NavItem & { roles: string[] })[] = [
     },
 ];
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
-    },
-];
+// const footerNavItems: NavItem[] = [
+//     {
+//         title: 'Repository',
+//         href: 'https://github.com/laravel/react-starter-kit',
+//         icon: Folder,
+//     },
+//     {
+//         title: 'Documentation',
+//         href: 'https://laravel.com/docs/starter-kits#react',
+//         icon: BookOpen,
+//     },
+// ];
 
 export function AppSidebar() {
     const { auth } = usePage().props as any;
@@ -119,7 +122,7 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
+                {/* <NavFooter items={footerNavItems} className="mt-auto" /> */}
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

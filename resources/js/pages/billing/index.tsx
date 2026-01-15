@@ -17,9 +17,11 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
+import apiService from '@/lib/api';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { Edit, Eye, Plus, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -28,19 +30,50 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+interface Bill {
+    id: number;
+    patient: {
+        user: {
+            name: string;
+        };
+    };
+    doctor: {
+        user: {
+            name: string;
+        };
+    };
+    total_amount: number;
+    paid_amount: number;
+    status: string;
+    bill_date: string;
+}
+
 export default function BillingIndex() {
-    // Mock data
-    const bills = [
-        {
-            id: 1,
-            patient_name: 'John Doe',
-            doctor_name: 'Dr. Sarah Johnson',
-            total_amount: 250.0,
-            paid_amount: 200.0,
-            status: 'Partially Paid',
-            date: '2024-01-15',
-        },
-    ];
+    const [bills, setBills] = useState<Bill[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchBills = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = (await apiService.get('/bills')) as {
+                success: boolean;
+                data: Bill[];
+            };
+            setBills(response.data || []);
+        } catch (err) {
+            setError(
+                err instanceof Error ? err.message : 'Failed to load bills',
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchBills();
+    }, []);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -98,10 +131,10 @@ export default function BillingIndex() {
                                 {bills.map((bill) => (
                                     <TableRow key={bill.id}>
                                         <TableCell className="font-medium">
-                                            {bill.patient_name}
+                                            {bill.patient?.user?.name || 'N/A'}
                                         </TableCell>
                                         <TableCell>
-                                            {bill.doctor_name}
+                                            {bill.doctor?.user?.name || 'N/A'}
                                         </TableCell>
                                         <TableCell>
                                             ${bill.total_amount.toFixed(2)}

@@ -8,6 +8,8 @@ use App\Models\Doctor;
 use App\Models\Appointment;
 use App\Models\Clinic;
 use App\Models\User;
+use App\Models\Service;
+use App\Models\Setting;
 use App\Http\Requests\BillStoreRequest;
 use App\Http\Requests\BillUpdateRequest;
 use App\Http\Requests\PaymentRequest;
@@ -55,34 +57,50 @@ class BillController extends Controller
      */
     private function calculateTax($amount, $clinicId)
     {
-        // Default tax rate of 10% - this could be made configurable per clinic
-        $taxRate = 0.10;
+        $taxRateSetting = Setting::active()
+            ->forClinic($clinicId)
+            ->byKey('tax_rate')
+            ->first();
+
+        $taxRate = $taxRateSetting ? $taxRateSetting->parsed_value / 100 : 0.10; // Default to 10% if not set
         return $amount * $taxRate;
     }
 
     /**
      * Calculate discount amount
      */
-    private function calculateDiscount($amount, $patientId, $appointmentId = null)
+    private function calculateDiscount($amount, $patientId, $appointmentId = null, $clinicId = null)
     {
         $discount = 0;
-        
+
         // Check if patient has insurance
         $patient = Patient::find($patientId);
         if ($patient && $patient->insurance_provider) {
-            // Apply 20% discount for insured patients
-            $discount = $amount * 0.20;
+            // Get insurance discount rate from settings
+            $insuranceDiscountSetting = Setting::active()
+                ->forClinic($clinicId ?? $patient->clinic_id)
+                ->byKey('insurance_discount_rate')
+                ->first();
+
+            $insuranceDiscountRate = $insuranceDiscountSetting ? $insuranceDiscountSetting->parsed_value / 100 : 0.20; // Default to 20%
+            $discount = $amount * $insuranceDiscountRate;
         }
-        
+
         // Check if this is a follow-up appointment
         if ($appointmentId) {
             $appointment = Appointment::find($appointmentId);
             if ($appointment && $appointment->appointment_type === 'follow-up') {
-                // Apply additional 10% discount for follow-ups
-                $discount += $amount * 0.10;
+                // Get follow-up discount rate from settings
+                $followUpDiscountSetting = Setting::active()
+                    ->forClinic($clinicId ?? $appointment->clinic_id)
+                    ->byKey('follow_up_discount_rate')
+                    ->first();
+
+                $followUpDiscountRate = $followUpDiscountSetting ? $followUpDiscountSetting->parsed_value / 100 : 0.10; // Default to 10%
+                $discount += $amount * $followUpDiscountRate;
             }
         }
-        
+
         return $discount;
     }
 
@@ -156,9 +174,11 @@ class BillController extends Controller
      */
     public function store(BillStoreRequest $request)
     {
+        \Log::info('BillController store called', ['request' => $request->all()]);
         $validatedData = $request->validated();
 
         $user = Auth::user();
+        \Log::info('User authenticated', ['user_id' => $user ? $user->id : null]);
 
         // Check if user has permission to create bills for this clinic
         if (!$user->isAdmin() && !$user->isDoctor() && !$user->isStaff()) {
@@ -190,7 +210,7 @@ class BillController extends Controller
         // Calculate tax and discount if not provided
         $amount = $request->amount;
         $tax = $request->tax ?? $this->calculateTax($amount, $request->clinic_id);
-        $discount = $request->discount ?? $this->calculateDiscount($amount, $request->patient_id, $request->appointment_id);
+        $discount = $request->discount ?? $this->calculateDiscount($amount, $request->patient_id, $request->appointment_id, $request->clinic_id);
         $totalAmount = $request->total_amount ?? $this->calculateTotalAmount($amount, $tax, $discount);
 
         try {
@@ -761,7 +781,7 @@ class BillController extends Controller
             // Determine amount based on doctor's consultation fee
             $amount = $appointment->doctor->consultation_fee ?? 100.00;
             $tax = $this->calculateTax($amount, $appointment->clinic_id);
-            $discount = $this->calculateDiscount($amount, $appointment->patient_id, $appointment->id);
+            $discount = $this->calculateDiscount($amount, $appointment->patient_id, $appointment->id, $appointment->clinic_id);
             $totalAmount = $this->calculateTotalAmount($amount, $tax, $discount);
 
             // Create the bill
@@ -878,59 +898,35 @@ class BillController extends Controller
     /**
      * Get service catalog for billing
      */
-    public function getServiceCatalog()
+    public function getServiceCatalog(Request $request)
     {
-        // This would typically come from a database table in a real application
-        $serviceCatalog = [
-            [
-                'id' => 'consultation',
-                'name' => 'General Consultation',
-                'description' => 'Standard doctor consultation',
-                'base_price' => 100.00,
-                'taxable' => true,
-                'insurance_eligible' => true,
-            ],
-            [
-                'id' => 'follow_up',
-                'name' => 'Follow-up Visit',
-                'description' => 'Follow-up consultation',
-                'base_price' => 75.00,
-                'taxable' => true,
-                'insurance_eligible' => true,
-            ],
-            [
-                'id' => 'emergency',
-                'name' => 'Emergency Consultation',
-                'description' => 'Urgent care consultation',
-                'base_price' => 150.00,
-                'taxable' => true,
-                'insurance_eligible' => true,
-            ],
-            [
-                'id' => 'lab_test',
-                'name' => 'Laboratory Test',
-                'description' => 'Basic laboratory tests',
-                'base_price' => 50.00,
-                'taxable' => true,
-                'insurance_eligible' => true,
-            ],
-            [
-                'id' => 'imaging',
-                'name' => 'Diagnostic Imaging',
-                'description' => 'X-ray, MRI, CT scan',
-                'base_price' => 200.00,
-                'taxable' => true,
-                'insurance_eligible' => true,
-            ],
-            [
-                'id' => 'vaccination',
-                'name' => 'Vaccination',
-                'description' => 'Standard vaccinations',
-                'base_price' => 30.00,
-                'taxable' => true,
-                'insurance_eligible' => true,
-            ],
-        ];
+        $user = Auth::user();
+        $query = Service::active();
+
+        // Filter by clinic if user is not admin
+        if (!$user->isAdmin()) {
+            $query->where('clinic_id', $user->clinic_id);
+        }
+
+        // Filter by category if provided
+        if ($request->has('category')) {
+            $query->where('category', $request->category);
+        }
+
+        $services = $query->orderBy('category')->orderBy('name')->get();
+
+        // Transform to match the expected format
+        $serviceCatalog = $services->map(function ($service) {
+            return [
+                'id' => $service->service_code,
+                'name' => $service->name,
+                'description' => $service->description,
+                'base_price' => $service->base_price,
+                'category' => $service->category,
+                'taxable' => $service->taxable,
+                'insurance_eligible' => $service->insurance_eligible,
+            ];
+        });
 
         return response()->json([
             'success' => true,

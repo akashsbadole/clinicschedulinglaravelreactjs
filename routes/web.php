@@ -17,7 +17,59 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
+        // Fetch dashboard data server-side and pass as props
+        $user = auth()->user();
+        $clinicId = $user->clinic_id;
+
+        $stats = [
+            'total_patients' => \App\Models\Patient::where('clinic_id', $clinicId)->count(),
+            'total_doctors' => \App\Models\Doctor::where('clinic_id', $clinicId)->count(),
+            'total_appointments_this_month' => \App\Models\Appointment::where('clinic_id', $clinicId)
+                ->whereMonth('appointment_date', now()->month)
+                ->whereYear('appointment_date', now()->year)
+                ->count(),
+            'total_revenue_this_month' => \App\Models\Bill::where('clinic_id', $clinicId)
+                ->where('status', 'paid')
+                ->whereMonth('bill_date', now()->month)
+                ->whereYear('bill_date', now()->year)
+                ->sum('total_amount'),
+            'pending_bills' => \App\Models\Bill::where('clinic_id', $clinicId)
+                ->where('status', 'pending')
+                ->count(),
+            'today_appointments' => \App\Models\Appointment::where('clinic_id', $clinicId)
+                ->whereDate('appointment_date', today())
+                ->count(),
+        ];
+
+        // Fetch today's appointments
+        $today = today();
+        $recentAppointments = \App\Models\Appointment::with(['patient.user', 'doctor.user'])
+            ->where('clinic_id', $clinicId)
+            ->whereDate('appointment_date', $today)
+            ->orderBy('start_time')
+            ->limit(5)
+            ->get();
+
+        // Fetch recent notifications
+        $notifications = $user->notifications()
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(function ($notification) {
+                return [
+                    'id' => $notification->id,
+                    'title' => $notification->data['title'] ?? 'Notification',
+                    'message' => $notification->data['message'] ?? '',
+                    'type' => $notification->data['type'] ?? 'info',
+                    'created_at' => $notification->created_at,
+                ];
+            });
+
+        return Inertia::render('dashboard', [
+            'stats' => $stats,
+            'recentAppointments' => $recentAppointments,
+            'notifications' => $notifications,
+        ]);
     })->name('dashboard');
 
     // Patient Management
@@ -129,6 +181,32 @@ Route::middleware(['auth', 'verified'])->group(function () {
             return Inertia::render('reports/operational');
         })->name('reports.operational');
     });
+
+    // Admin Dashboard for enquiries and contacts
+    Route::middleware('role:admin')->group(function () {
+        Route::get('admin/dashboard', function () {
+            return Inertia::render('admin/dashboard', [
+                'enquiries' => \App\Models\Enquiry::with(['followUps.user'])->latest()->get(),
+                'contacts' => \App\Models\Contact::with(['followUps.user'])->latest()->get(),
+            ]);
+        })->name('admin.dashboard');
+
+        // Enquiry management
+        Route::get('admin/enquiries', [App\Http\Controllers\EnquiryController::class, 'index'])->name('admin.enquiries.index');
+        Route::get('admin/enquiries/{enquiry}', [App\Http\Controllers\EnquiryController::class, 'show'])->name('admin.enquiries.show');
+        Route::patch('admin/enquiries/{enquiry}/status', [App\Http\Controllers\EnquiryController::class, 'updateStatus'])->name('admin.enquiries.update-status');
+        Route::post('admin/enquiries/{enquiry}/follow-ups', [App\Http\Controllers\EnquiryController::class, 'addFollowUp'])->name('admin.enquiries.add-follow-up');
+
+        // Contact management
+        Route::get('admin/contacts', [App\Http\Controllers\ContactController::class, 'index'])->name('admin.contacts.index');
+        Route::get('admin/contacts/{contact}', [App\Http\Controllers\ContactController::class, 'show'])->name('admin.contacts.show');
+        Route::patch('admin/contacts/{contact}/status', [App\Http\Controllers\ContactController::class, 'updateStatus'])->name('admin.contacts.update-status');
+        Route::post('admin/contacts/{contact}/follow-ups', [App\Http\Controllers\ContactController::class, 'addFollowUp'])->name('admin.contacts.add-follow-up');
+    });
 });
+
+// Public routes for enquiries and contacts
+Route::post('enquiries', [App\Http\Controllers\EnquiryController::class, 'store']);
+Route::post('contacts', [App\Http\Controllers\ContactController::class, 'store']);
 
 require __DIR__.'/settings.php';
