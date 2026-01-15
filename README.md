@@ -14,6 +14,11 @@ A comprehensive Laravel + React application for managing medical clinic operatio
 - [Contributing](#contributing)
 - [License](#license)
 
+## Screenshots
+![clinic index](clinic-index.jpeg)
+![clinic login](clinic-login.jpeg)
+
+
 ## ✨ Features
 
 ### 🧑‍⚕️ Patient Management

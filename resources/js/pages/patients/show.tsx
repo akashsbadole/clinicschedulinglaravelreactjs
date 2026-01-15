@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { ArrowLeft, Calendar, Edit, FileText, Receipt } from 'lucide-react';
+import { ArrowLeft, Calendar, Edit, FileText, Receipt, Eye, EyeOff } from 'lucide-react';
 
 import apiService from '@/lib/api';
 import { useEffect, useState } from 'react';
@@ -37,6 +37,7 @@ export default function PatientsShow() {
     const [patient, setPatient] = useState<Patient | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showMedicalInfo, setShowMedicalInfo] = useState(false);
 
     useEffect(() => {
         const fetchPatient = async () => {
@@ -198,17 +199,37 @@ export default function PatientsShow() {
                                 </Card>
 
                                 <Card>
-                                    <CardHeader>
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                         <CardTitle>Medical Information</CardTitle>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setShowMedicalInfo(!showMedicalInfo)}
+                                            className="h-8 gap-1"
+                                        >
+                                            {showMedicalInfo ? (
+                                                <>
+                                                    <EyeOff className="h-4 w-4" />
+                                                    Hide
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Eye className="h-4 w-4" />
+                                                    Show
+                                                </>
+                                            )}
+                                        </Button>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <div>
-                                            <label className="text-sm font-medium text-muted-foreground">
-                                                Allergies
-                                            </label>
                                             <p className="text-sm">
-                                                {patient.allergies ||
-                                                    'None specified'}
+                                                {showMedicalInfo ? (
+                                                    patient.allergies || 'None specified'
+                                                ) : (
+                                                    <span className="select-none font-sans tracking-tight text-muted-foreground/50 blur-[4px]">
+                                                        Sample Allergy Information Showing Here
+                                                    </span>
+                                                )}
                                             </p>
                                         </div>
                                         <div>
@@ -216,8 +237,13 @@ export default function PatientsShow() {
                                                 Medical History
                                             </label>
                                             <p className="text-sm">
-                                                {patient.medical_history ||
-                                                    'None specified'}
+                                                {showMedicalInfo ? (
+                                                    patient.medical_history || 'None specified'
+                                                ) : (
+                                                    <span className="select-none font-sans tracking-tight text-muted-foreground/50 blur-[4px]">
+                                                        Detailed medical history and record of past treatments and conditions
+                                                    </span>
+                                                )}
                                             </p>
                                         </div>
                                     </CardContent>

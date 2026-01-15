@@ -180,6 +180,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('reports/operational', function () {
             return Inertia::render('reports/operational');
         })->name('reports.operational');
+
+        Route::get('reports/patients', function () {
+            return Inertia::render('reports/patients');
+        })->name('reports.patients');
+
+        Route::get('reports/appointments', function () {
+            return Inertia::render('reports/appointments');
+        })->name('reports.appointments');
+
+        Route::get('reports/billing', function () {
+            return Inertia::render('reports/billing');
+        })->name('reports.billing');
+
+        Route::get('reports/medical', function () {
+            return Inertia::render('reports/medical');
+        })->name('reports.medical');
     });
 
     // Admin Dashboard for enquiries and contacts

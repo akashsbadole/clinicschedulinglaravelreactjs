@@ -20,7 +20,7 @@ class AppointmentStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'clinic_id' => 'required|exists:clinics,id',
+            'clinic_id' => 'nullable|exists:clinics,id',
             'patient_id' => 'required|exists:patients,id',
             'doctor_id' => 'required|exists:doctors,id',
             'appointment_date' => 'required|date|after_or_equal:today',

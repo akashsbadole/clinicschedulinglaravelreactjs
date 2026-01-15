@@ -208,9 +208,14 @@ class AppointmentController extends Controller
      */
     public function store(AppointmentStoreRequest $request)
     {
-        $validatedData = $request->validated();
-        
         $user = Auth::user();
+
+        // Set clinic_id if not provided (for non-admin users, use their clinic)
+        if (!$request->has('clinic_id') || !$request->clinic_id) {
+            $request->merge(['clinic_id' => $user->clinic_id]);
+        }
+
+        $validatedData = $request->validated();
         
         // Check if user has permission to create appointments for this clinic
         if (!$user->isAdmin() && !$user->isDoctor() && !$user->isStaff() && !$user->isPatient()) {

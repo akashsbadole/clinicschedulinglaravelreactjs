@@ -8,7 +8,7 @@ import Controllers from '../actions/App/Http/Controllers';
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || '/api',
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
     headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -114,7 +114,7 @@ class ApiService {
     private static instance: ApiService;
     private csrfInitialized = false;
 
-    private constructor() {}
+    private constructor() { }
 
     public static getInstance(): ApiService {
         if (!ApiService.instance) {
@@ -235,8 +235,8 @@ class ApiService {
                 };
                 throw new Error(
                     responseData.message ||
-                        JSON.stringify(responseData.errors) ||
-                        `API Error: ${axiosError.response.status}`,
+                    JSON.stringify(responseData.errors) ||
+                    `API Error: ${axiosError.response.status}`,
                 );
             } else if (axiosError.request) {
                 // Request was made but no response received
