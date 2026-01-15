@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, FileText, Save, Edit } from 'lucide-react';
+import { ArrowLeft, FileText, Save, Edit, Upload, File, Trash2, Clock, CheckCircle2 } from 'lucide-react';
 
 import { useEffect, useState } from 'react';
 import apiService from '@/lib/api';
@@ -55,6 +55,8 @@ export default function MedicalRecordEdit() {
     const [error, setError] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [history, setHistory] = useState<MedicalRecord[]>([]);
+    const [newAttachments, setNewAttachments] = useState<File[]>([]);
 
     const [formData, setFormData] = useState({
         record_type: '',
@@ -85,10 +87,46 @@ export default function MedicalRecordEdit() {
             }
         };
 
+        const fetchHistory = async (patientId: number) => {
+            try {
+                const response = (await apiService.get(`/medical-records/patient/${patientId}`)) as {
+                    success: boolean;
+                    data: MedicalRecord[];
+                };
+                // Filter out current record and sort by date
+                const otherRecords = response.data
+                    .filter((r) => r.id !== parseInt(id))
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                setHistory(otherRecords);
+            } catch (err) {
+                console.error('Failed to fetch record history:', err);
+            }
+        };
+
         if (id) {
             fetchRecord();
         }
     }, [id]);
+
+    useEffect(() => {
+        if (record?.patient?.id) {
+            const fetchHistory = async (patientId: number) => {
+                try {
+                    const response = (await apiService.get(`/medical-records/patient/${patientId}`)) as {
+                        success: boolean;
+                        data: MedicalRecord[];
+                    };
+                    const otherRecords = response.data
+                        .filter((r) => r.id !== parseInt(id))
+                        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                    setHistory(otherRecords);
+                } catch (err) {
+                    console.error('Failed to fetch record history:', err);
+                }
+            };
+            fetchHistory(record.patient.id);
+        }
+    }, [record?.patient?.id, id]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -96,16 +134,56 @@ export default function MedicalRecordEdit() {
             setProcessing(true);
             setError(null);
             setSuccess(false);
-            await apiService.put(`/medical-records/${id}`, formData);
+
+            const data = new FormData();
+            data.append('_method', 'PUT'); // Laravel method spoofing for FormData with PUT
+            data.append('record_type', formData.record_type);
+            data.append('content', formData.content);
+            data.append('severity', formData.severity);
+            data.append('is_confidential', formData.is_confidential ? '1' : '0');
+
+            newAttachments.forEach((file) => {
+                data.append('attachments[]', file);
+            });
+
+            await apiService.post(`/medical-records/${id}`, data, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
             setSuccess(true);
+            setNewAttachments([]);
+            // Refresh record to show new attachments
+            const refreshed = (await apiService.get(`/medical-records/${id}`)) as {
+                success: boolean;
+                data: MedicalRecord;
+            };
+            setRecord(refreshed.data);
+            
             setTimeout(() => {
-                window.location.href = `/medical-records/${id}`;
-            }, 1500);
+                setSuccess(false);
+            }, 3000);
         } catch (err: any) {
             setError(err.message || 'Failed to update medical record');
         } finally {
             setProcessing(false);
         }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const files = Array.from(e.target.files);
+            setNewAttachments((prev) => [...prev, ...files]);
+        }
+    };
+
+    const removeNewAttachment = (index: number) => {
+        setNewAttachments((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const getAttachmentName = (path: string) => {
+        return path.split('/').pop() || 'Attachment';
     };
 
     if (loading) {
@@ -272,6 +350,96 @@ export default function MedicalRecordEdit() {
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
+                                <Upload className="h-5 w-5" />
+                                Attachments (Images, X-rays, Documents)
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label>New Attachments</Label>
+                                    <div className="flex flex-col gap-2">
+                                        <div className="relative flex items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 p-6 transition-colors hover:border-muted-foreground/50">
+                                            <input
+                                                type="file"
+                                                multiple
+                                                onChange={handleFileChange}
+                                                className="absolute inset-0 cursor-pointer opacity-0"
+                                            />
+                                            <div className="flex flex-col items-center gap-1 text-center">
+                                                <Upload className="h-8 w-8 text-muted-foreground" />
+                                                <p className="text-sm text-muted-foreground">
+                                                    Click or drag and drop to upload
+                                                </p>
+                                                <p className="text-xs text-muted-foreground/75">
+                                                    PDF, JPG, PNG, DOCX up to 10MB
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {newAttachments.length > 0 && (
+                                            <div className="mt-2 space-y-2">
+                                                {newAttachments.map((file, index) => (
+                                                    <div key={index} className="flex items-center justify-between rounded-md bg-muted/50 p-2">
+                                                        <div className="flex items-center gap-2 overflow-hidden">
+                                                            <File className="h-4 w-4 shrink-0" />
+                                                            <span className="truncate text-sm">{file.name}</span>
+                                                            <span className="text-xs text-muted-foreground">({(file.size / 1024).toFixed(0)} KB)</span>
+                                                        </div>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-red-500 hover:bg-red-500/10 hover:text-red-500"
+                                                            onClick={() => removeNewAttachment(index)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Existing Attachments</Label>
+                                    <div className="flex flex-col gap-2">
+                                        {record.attachments && record.attachments.length > 0 ? (
+                                            record.attachments.map((path, index) => (
+                                                <div key={index} className="flex items-center justify-between rounded-md border p-2">
+                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                        <FileText className="h-4 w-4 shrink-0" />
+                                                        <span className="truncate text-sm">{getAttachmentName(path)}</span>
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            asChild
+                                                        >
+                                                            <a href={`/storage/${path}`} target="_blank" rel="noopener noreferrer">
+                                                                View
+                                                            </a>
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="py-4 text-center text-sm text-muted-foreground">
+                                                No attachments found.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
                                 <Edit className="h-5 w-5" />
                                 Clinical Content
                             </CardTitle>
@@ -293,6 +461,46 @@ export default function MedicalRecordEdit() {
                                     required
                                 />
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Clock className="h-5 w-5" />
+                                Patient Record History
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {history.length > 0 ? (
+                                <div className="space-y-4">
+                                    {history.map((prevRecord) => (
+                                        <div key={prevRecord.id} className="relative rounded-lg border p-4 pl-10">
+                                            <div className="absolute left-4 top-5 flex h-4 w-4 items-center justify-center">
+                                                <CheckCircle2 className="h-3 w-3 text-primary" />
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <Badge variant="outline">{prevRecord.record_type}</Badge>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {new Date(prevRecord.created_at).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+                                                <Button variant="ghost" size="sm" asChild>
+                                                    <Link href={`/medical-records/${prevRecord.id}`}>View Full</Link>
+                                                </Button>
+                                            </div>
+                                            <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
+                                                {prevRecord.content}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="py-8 text-center text-muted-foreground">
+                                    No previous medical records found for this patient.
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 

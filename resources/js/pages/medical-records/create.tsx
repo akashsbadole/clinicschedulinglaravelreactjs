@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, FileText, Save, Edit } from 'lucide-react';
+import { ArrowLeft, FileText, Save, Edit, Upload, File, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import apiService from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +56,7 @@ export default function MedicalRecordCreate() {
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [newAttachments, setNewAttachments] = useState<File[]>([]);
 
     useEffect(() => {
         const queryParams = new URLSearchParams(window.location.search);
@@ -98,7 +99,26 @@ export default function MedicalRecordCreate() {
             setProcessing(true);
             setError(null);
             setSuccess(false);
-            await apiService.post('/medical-records', formData);
+
+            const data = new FormData();
+            data.append('clinic_id', formData.clinic_id);
+            data.append('patient_id', formData.patient_id);
+            data.append('doctor_id', formData.doctor_id);
+            data.append('record_type', formData.record_type);
+            data.append('content', formData.content);
+            data.append('severity', formData.severity);
+            data.append('is_confidential', formData.is_confidential ? '1' : '0');
+
+            newAttachments.forEach((file) => {
+                data.append('attachments[]', file);
+            });
+
+            await apiService.post('/medical-records', data, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
             setSuccess(true);
             setTimeout(() => {
                 window.location.href = '/medical-records';
@@ -108,6 +128,17 @@ export default function MedicalRecordCreate() {
         } finally {
             setProcessing(false);
         }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const files = Array.from(e.target.files);
+            setNewAttachments((prev) => [...prev, ...files]);
+        }
+    };
+
+    const removeNewAttachment = (index: number) => {
+        setNewAttachments((prev) => prev.filter((_, i) => i !== index));
     };
 
     return (
@@ -211,8 +242,9 @@ export default function MedicalRecordCreate() {
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div>
                                     <Label htmlFor="record_type">Record Type</Label>
-                                    <Input
+                                    <select
                                         id="record_type"
+                                        className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                         value={formData.record_type}
                                         onChange={(e) =>
                                             setFormData({
@@ -220,10 +252,15 @@ export default function MedicalRecordCreate() {
                                                 record_type: e.target.value,
                                             })
                                         }
-                                        className="mt-1"
-                                        placeholder="e.g., General Checkup"
                                         required
-                                    />
+                                    >
+                                        <option value="notes">Clinical Notes</option>
+                                        <option value="diagnosis">Diagnosis</option>
+                                        <option value="prescription">Prescription</option>
+                                        <option value="lab_result">Lab Result</option>
+                                        <option value="imaging">Imaging</option>
+                                        <option value="consultation">Consultation</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <Label htmlFor="severity">Severity</Label>
@@ -259,6 +296,62 @@ export default function MedicalRecordCreate() {
                                     className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                                 />
                                 <Label htmlFor="is_confidential">Mark as Confidential</Label>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Upload className="h-5 w-5" />
+                                Attachments (Images, X-rays, Documents)
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label>Upload Attachments</Label>
+                                <div className="flex flex-col gap-2">
+                                    <div className="relative flex items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 p-6 transition-colors hover:border-muted-foreground/50">
+                                        <input
+                                            type="file"
+                                            multiple
+                                            onChange={handleFileChange}
+                                            className="absolute inset-0 cursor-pointer opacity-0"
+                                        />
+                                        <div className="flex flex-col items-center gap-1 text-center">
+                                            <Upload className="h-8 w-8 text-muted-foreground" />
+                                            <p className="text-sm text-muted-foreground">
+                                                Click or drag and drop to upload
+                                            </p>
+                                            <p className="text-xs text-muted-foreground/75">
+                                                PDF, JPG, PNG, DOCX up to 10MB
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {newAttachments.length > 0 && (
+                                        <div className="mt-2 space-y-2">
+                                            {newAttachments.map((file, index) => (
+                                                <div key={index} className="flex items-center justify-between rounded-md bg-muted/50 p-2">
+                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                        <File className="h-4 w-4 shrink-0" />
+                                                        <span className="truncate text-sm">{file.name}</span>
+                                                        <span className="text-xs text-muted-foreground">({(file.size / 1024).toFixed(0)} KB)</span>
+                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-red-500 hover:bg-red-500/10 hover:text-red-500"
+                                                        onClick={() => removeNewAttachment(index)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
